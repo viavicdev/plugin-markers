@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Loader</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+    }
+    
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .timeline-container {
+      width: 200px;
+      height: 140px;
+      position: relative;
+    }
+    
+    .timeline {
+      position: absolute;
+      top: 20px;
+      left: 10px;
+      right: 10px;
+      bottom: 20px;
+      overflow: hidden;
+    }
+    
+    .track {
+      height: 28px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+    
+    .track-label {
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 16px;
+      border-radius: 2px;
+    }
+    
+    .track-v1 .track-label { background: rgba(219, 26, 26, 0.6); }
+    .track-v2 .track-label { background: rgba(219, 26, 26, 0.4); }
+    .track-a1 .track-label { background: rgba(255, 255, 255, 0.6); }
+    .track-a2 .track-label { background: rgba(255, 255, 255, 0.4); }
+    
+    .clip {
+      position: absolute;
+      top: 2px;
+      height: 24px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .clip-v {
+      background: rgba(219, 26, 26, 0.25);
+      border: 1px solid rgba(219, 26, 26, 0.5);
+    }
+    
+    .clip-a {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+    }
+    
+    .waveform {
+      position: absolute;
+      top: 50%;
+      left: 4px;
+      right: 4px;
+      height: 14px;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 1px;
+    }
+    
+    .wave-bar {
+      flex: 1;
+      background: currentColor;
+      border-radius: 1px;
+      transform-origin: center;
+    }
+    
+    .clip-a .wave-bar {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .wave-bar.anim {
+      animation: wavePulse 0.6s ease-in-out infinite;
+    }
+    
+    @keyframes wavePulse {
+      0%, 100% { transform: scaleY(0.3); }
+      50% { transform: scaleY(1); }
+    }
+    
+    .frame-lines {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      left: 0;
+      right: 0;
+      display: flex;
+      gap: 2px;
+    }
+    
+    .frame-line {
+      flex: 1;
+      background: rgba(219, 26, 26, 0.15);
+      border-radius: 1px;
+    }
+    
+    .playhead {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .playhead-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+    
+    .playhead-head {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.8);
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+    
+    .selection {
+      position: absolute;
+      top: 2px;
+      height: 24px;
+      background: rgba(255, 200, 50, 0.12);
+      border: 1px solid rgba(255, 200, 50, 0.4);
+      border-radius: 3px;
+      opacity: 0;
+    }
+    
+    .selection.anim {
+      animation: selectionPulse 3.2s ease-in-out infinite;
+    }
+    
+    @keyframes selectionPulse {
+      0%, 100% { opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.8; }
+    }
+    
+    .timecode-ruler {
+      position: absolute;
+      top: 0;
+      left: 10px;
+      right: 10px;
+      height: 16px;
+      display: flex;
+      align-items: flex-end;
+    }
+    
+    .tick {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      background: rgba(200, 200, 200, 0.3);
+    }
+    
+    .tick.major {
+      height: 8px;
+      background: rgba(200, 200, 200, 0.5);
+    }
+    
+    .tick.minor {
+      height: 4px;
+    }
+    
+    .processing-glow {
+      position: absolute;
+      top: 2px;
+      height: 24px;
+      width: 30px;
+      background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.15) 50%, 
+        transparent 100%);
+      opacity: 0;
+      border-radius: 3px;
+    }
+    
+    .processing-glow.anim {
+      animation: processingScan 3.2s linear infinite;
+    }
+    
+    @keyframes processingScan {
+      0% { left: 0; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { left: calc(100% - 30px); opacity: 0; }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      .wave-bar.anim,
+      .selection.anim,
+      .processing-glow.anim {
+        animation: none;
+      }
+      .wave-bar.anim {
+        transform: scaleY(0.6);
+      }
+      .selection.anim {
+        opacity: 0.5;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="timeline-container">
+    <div class="timecode-ruler" id="ruler"></div>
+    
+    <div class="timeline">
+      <div class="track track-v1" id="track-v1">
+        <div class="track-label"></div>
+      </div>
+      <div class="track track-v2" id="track-v2">
+        <div class="track-label"></div>
+      </div>
+      <div class="track track-a1" id="track-a1">
+        <div class="track-label"></div>
+      </div>
+      <div class="track track-a2" id="track-a2">
+        <div class="track-label"></div>
+      </div>
+      
+      <div class="playhead" id="playhead">
+        <div class="playhead-head"></div>
+        <div class="playhead-line"></div>
+      </div>
+    </div>
+    
+    <div class="selection anim" id="selection"></div>
+  </div>
+
+  <script>
+    (function() {
+      var clipData = {
+        v1: [
+          { left: 0, width: 42 },
+          { left: 46, width: 58 },
+          { left: 108, width: 35 },
+          { left: 147, width: 53 }
+        ],
+        v2: [
+          { left: 18, width: 38 },
+          { left: 90, width: 48 },
+          { left: 158, width: 42 }
+        ],
+        a1: [
+          { left: 0, width: 95 },
+          { left: 99, width: 101 }
+        ],
+        a2: [
+          { left: 32, width: 70 },
+          { left: 106, width: 94 }
+        ]
+      };
+      
+      var selectionData = { left: 46, width: 58 };
+      var animationDuration = 3200;
+      var startTime = null;
+      var playhead = document.getElementById('playhead');
+      var selection = document.getElementById('selection');
+      var ruler = document.getElementById('ruler');
+      
+      function createWaveform(count) {
+        var waveform = document.createElement('div');
+        waveform.className = 'waveform';
+        
+        for (var i = 0; i < count; i++) {
+          var bar = document.createElement('div');
+          bar.className = 'wave-bar';
+          var h = 4 + Math.random() * 10;
+          bar.style.height = h + 'px';
+          waveform.appendChild(bar);
+        }
+        return waveform;
+      }
+      
+      function createFrameLines(count) {
+        var container = document.createElement('div');
+        container.className = 'frame-lines';
+        
+        for (var i = 0; i < count; i++) {
+          var line = document.createElement('div');
+          line.className = 'frame-line';
+          if (Math.random() > 0.7) {
+            line.style.opacity = '0.5';
+          }
+          container.appendChild(line);
+        }
+        return container;
+      }
+      
+      function createClips() {
+        var trackV1 = document.getElementById('track-v1');
+        var trackV2 = document.getElementById('track-v2');
+        var trackA1 = document.getElementById('track-a1');
+        var trackA2 = document.getElementById('track-a2');
+        
+        clipData.v1.forEach(function(data) {
+          var clip = document.createElement('div');
+          clip.className = 'clip clip-v';
+          clip.style.left = data.left + 'px';
+          clip.style.width = data.width + 'px';
+          var frameCount = Math.floor(data.width / 4);
+          clip.appendChild(createFrameLines(frameCount));
+          
+          var glow = document.createElement('div');
+          glow.className = 'processing-glow anim';
+          clip.appendChild(glow);
+          
+          trackV1.appendChild(clip);
+        });
+        
+        clipData.v2.forEach(function(data) {
+          var clip = document.createElement('div');
+          clip.className = 'clip clip-v';
+          clip.style.left = data.left + 'px';
+          clip.style.width = data.width + 'px';
+          var frameCount = Math.floor(data.width / 4);
+          clip.appendChild(createFrameLines(frameCount));
+          trackV2.appendChild(clip);
+        });
+        
+        clipData.a1.forEach(function(data) {
+          var clip = document.createElement('div');
+          clip.className = 'clip clip-a';
+          clip.style.left = data.left + 'px';
+          clip.style.width = data.width + 'px';
+          var waveCount = Math.floor(data.width / 3);
+          clip.appendChild(createWaveform(waveCount));
+          trackA1.appendChild(clip);
+        });
+        
+        clipData.a2.forEach(function(data) {
+          var clip = document.createElement('div');
+          clip.className = 'clip clip-a';
+          clip.style.left = data.left + 'px';
+          clip.style.width = data.width + 'px';
+          var waveCount = Math.floor(data.width / 3);
+          clip.appendChild(createWaveform(waveCount));
+          trackA2.appendChild(clip);
+        });
+      }
+      
+      function createRuler() {
+        for (var i = 0; i <= 180; i += 6) {
+          var tick = document.createElement('div');
+          tick.className = 'tick ' + (i % 30 === 0 ? 'major' : 'minor');
+          tick.style.left = i + 'px';
+          ruler.appendChild(tick);
+        }
+      }
+      
+      function setSelection() {
+        selection.style.left = (10 + selectionData.left) + 'px';
+        selection.style.width = selectionData.width + 'px';
+        selection.style.top = '22px';
+      }
+      
+      function animateWaveforms() {
+        var bars = document.querySelectorAll('.clip-a .wave-bar');
+        bars.forEach(function(bar, index) {
+          var delay = (index * 50) % 600;
+          bar.style.animationDelay = delay + 'ms';
+          bar.classList.add('anim');
+        });
+      }
+      
+      function animatePlayhead(timestamp) {
+        if (!startTime) startTime = timestamp;
+        var elapsed = (timestamp - startTime) % animationDuration;
+        var progress = elapsed / animationDuration;
+        var position = progress * 180;
+        playhead.style.left = position + 'px';
+        requestAnimationFrame(animatePlayhead);
+      }
+      
+      function init() {
+        createRuler();
+        createClips();
+        setSelection();
+        animateWaveforms();
+        requestAnimationFrame(animatePlayhead);
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

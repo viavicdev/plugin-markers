@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<title>RENDER – Multicam Markers</title>
+<style>
+:root {
+  --bg:      #0E0E10;
+  --surface: #17171A;
+  --raised:  #1F1F24;
+  --border:  #2A2A32;
+  --accent:  #EB5E28;
+  --adim:    rgba(235,94,40,0.12);
+  --text:    #EFEFEF;
+  --muted:   #666;
+  --sub:     #999;
+  --ok:      #3DAA5C;
+  --warn:    #E8A030;
+  --err:     #D94040;
+  --mono:    'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.hdr {
+  padding: 10px 14px 9px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.hdr-logo {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.hdr-title { font-size: 14px; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 8px; }
+.beta-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  background: var(--adim);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.info-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--sub);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.info-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── INFO MODAL ── */
+.info-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.info-overlay.show { display: flex; }
+.info-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-width: 420px;
+  width: 100%;
+  padding: 20px;
+  position: relative;
+}
+.info-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+.info-close:hover { color: var(--text); }
+.info-modal h2 {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+.info-modal h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-top: 16px;
+  margin-bottom: 6px;
+}
+.info-modal p, .info-modal li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.info-modal ol, .info-modal ul {
+  padding-left: 18px;
+  margin-bottom: 8px;
+}
+.info-modal li { margin-bottom: 4px; }
+.info-modal code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.info-modal .info-sub {
+  font-size: 11px;
+  color: var(--sub);
+  margin-bottom: 12px;
+}
+.info-modal .info-note {
+  background: var(--adim);
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  margin-top: 12px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* ── STEPS ── */
+.steps {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.step {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.step.active  { color: var(--accent); border-bottom-color: var(--accent); }
+.step.done    { color: var(--ok); }
+.step-num {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--border);
+  font-size: 9px;
+  line-height: 16px;
+  text-align: center;
+  margin-right: 4px;
+}
+.step.active .step-num { background: var(--accent); color: #fff; }
+.step.done   .step-num { background: var(--ok);     color: #fff; }
+
+/* ── BODY ── */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* ── PANELS ── */
+.panel { display: none; }
+.panel.active { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── SECTION LABEL ── */
+.slabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* ── DROP ZONE ── */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dropzone:hover, .dropzone.over {
+  border-color: var(--accent);
+  background: var(--adim);
+}
+.dropzone-icon { font-size: 28px; margin-bottom: 8px; }
+.dropzone-label { color: var(--sub); font-size: 12px; }
+.dropzone-label strong { color: var(--accent); }
+#csvFileInput { display: none; }
+
+/* ── CSV INFO BAR ── */
+.csv-info {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+.csv-info.show { display: flex; }
+.csv-badge {
+  background: var(--ok);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+.csv-filename { flex: 1; font-family: var(--mono); font-size: 11px; color: var(--text); }
+.csv-count { color: var(--muted); font-size: 11px; }
+
+/* ── MARKER TABLE ── */
+.marker-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mt-header {
+  display: grid;
+  grid-template-columns: 70px 1fr 60px;
+  padding: 7px 10px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mt-body { max-height: 180px; overflow-y: auto; }
+.mt-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 60px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  animation: fi 0.12s ease;
+}
+.mt-row:last-child { border-bottom: none; }
+@keyframes fi { from { opacity:0; } to { opacity:1; } }
+.mt-tc {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.mt-comment {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 6px;
+}
+.mt-color-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  justify-self: center;
+}
+.mt-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ── KLIPP VELGER ── */
+.clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.clip-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.clip-item:hover { border-color: var(--accent); background: var(--adim); }
+.clip-item.selected {
+  border-color: var(--accent);
+  background: var(--adim);
+}
+.clip-item.selected .clip-radio { background: var(--accent); border-color: var(--accent); }
+.clip-radio {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.clip-name { font-family: var(--mono); font-size: 12px; flex: 1; }
+.clip-type { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.reload-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--sub);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 6px 12px;
+  transition: all 0.12s;
+  align-self: flex-start;
+}
+.reload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── SUMMARY ── */
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-key { color: var(--muted); font-size: 11px; }
+.summary-val { font-family: var(--mono); font-size: 11px; color: var(--text); }
+.summary-val.accent { color: var(--accent); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px;
+  transition: opacity 0.15s;
+  letter-spacing: 0.02em;
+}
+.btn-primary:hover    { opacity: 0.87; }
+.btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.btn-secondary {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--sub);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 9px;
+  transition: all 0.12s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn-secondary { flex: 1; }
+
+/* ── RESULT ── */
+.result-box {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.result-box.show { display: flex; }
+.result-icon { font-size: 36px; }
+.result-title { font-size: 16px; font-weight: 700; }
+.result-sub   { font-size: 12px; color: var(--muted); }
+.result-skip  { font-size: 11px; color: var(--warn); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 12px; left: 14px; right: 14px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 12px;
+  display: none;
+  z-index: 999;
+  border-left: 3px solid var(--ok);
+}
+.toast.error { border-left-color: var(--err); }
+.toast.warn  { border-left-color: var(--warn); }
+.toast.show  { display: block; animation: fi 0.15s ease; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div style="flex:1;">
+    <div class="hdr-logo">RENDER · KIT</div>
+    <div class="hdr-title">
+      Multicam Markers
+      <span class="beta-badge">BETA</span>
+    </div>
+  </div>
+  <button class="info-btn" onclick="toggleInfo(true)" title="Hjelp / hvordan bruke">?</button>
+</div>
+
+<!-- Info modal -->
+<div class="info-overlay" id="infoOverlay" onclick="if(event.target===this)toggleInfo(false)">
+  <div class="info-modal">
+    <button class="info-close" onclick="toggleInfo(false)">×</button>
+    <h2>Multicam Markers <span class="beta-badge" style="vertical-align:middle;">BETA</span></h2>
+    <p class="info-sub">Importer timecodes fra en CSV (f.eks. fra Teams-chat) og skriv dem som markers direkte på et multicam-klipp i Premiere.</p>
+
+    <h3>Slik bruker du den</h3>
+    <ol>
+      <li><strong>Last opp CSV</strong> med format <code>HH:MM:SS:FF,Kommentar</code> — én rad per marker.</li>
+      <li><strong>Velg multicam-klipp</strong> fra prosjektet.</li>
+      <li><strong>Sett Start-TC og FPS</strong> som matcher klippets source-timecode (sjekk i Premiere: høyreklikk klipp → Modify → Timecode).</li>
+      <li><strong>Send markers</strong> — pluginen regner ut posisjon og skriver dem på klippet.</li>
+    </ol>
+
+    <h3>CSV-format</h3>
+    <p>Anbefalt (framenøyaktig):</p>
+    <p><code>09:05:30:12,Intervju gjest 1</code></p>
+    <p>Også støttet: <code>HH:MM:SS</code>, <code>HH:MM</code>, <code>HH.MM</code> (Teams).</p>
+    <p>Valgfri 3. kolonne med farge: <code>red</code>, <code>green</code>, <code>yellow</code>, <code>blue</code>, <code>cyan</code>, <code>purple</code>.</p>
+
+    <h3>Tips</h3>
+    <ul>
+      <li>Marker-TC må være innenfor klippets tidsrom — utenfor blir hoppet over.</li>
+      <li>Bruk <strong>🗑 Fjern eksisterende</strong> for å rydde gamle markers før ny import.</li>
+      <li>Multicam-klipp viser <em>ikke</em> source-TC automatisk i Premiere — du må fylle inn manuelt.</li>
+    </ul>
+
+    <div class="info-note">
+      <strong>BETA:</strong> Auto-detect av Start-TC og FPS fungerer ikke for multicam-klipp ennå — derfor må disse fylles inn manuelt. Vanlige klipp støttes med auto-detect.
+    </div>
+
+    <div style="margin-top:18px; padding-top:12px; border-top:1px solid var(--border); font-size:11px; color:var(--sub); text-align:center;">
+      © ENSAMBLE AS<br>
+      Kontakt: <span style="color:var(--accent);">victoria@ensamble.no</span>
+    </div>
+  </div>
+</div>
+
+<!-- Steps -->
+<div class="steps">
+  <div class="step active" id="step1"><span class="step-num">1</span>CSV</div>
+  <div class="step"        id="step2"><span class="step-num">2</span>Klipp</div>
+  <div class="step"        id="step3"><span class="step-num">3</span>Send</div>
+</div>
+
+<!-- Body -->
+<div class="body">
+
+  <!-- ── PANEL 1: Last opp CSV ── -->
+  <div class="panel active" id="panel1">
+
+    <div>
+      <div class="slabel">Last opp CSV for dagen</div>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFileInput').click()">
+        <div class="dropzone-icon">📄</div>
+        <div class="dropzone-label">
+          Dra CSV med timecode hit<br>
+          <strong>2026-05-27.csv</strong>
+        </div>
+      </div>
+      <input type="file" id="csvFileInput" accept=".csv">
+    </div>
+
+    <!-- CSV info etter lasting -->
+    <div class="csv-info" id="csvInfo">
+      <span class="csv-badge">CSV</span>
+      <span class="csv-filename" id="csvFilename">—</span>
+      <span class="csv-count" id="csvCount">0 rader</span>
+    </div>
+
+    <!-- Preview -->
+    <div id="previewWrap" style="display:none">
+      <div class="slabel">Forhåndsvisning</div>
+      <div class="marker-table">
+        <div class="mt-header">
+          <span>Klokkeslett</span>
+          <span>Kommentar</span>
+          <span style="text-align:center">Farge</span>
+        </div>
+        <div class="mt-body" id="previewBody"></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="toStep2Btn" onclick="goToStep2()" disabled>
+      Velg klipp →
+    </button>
+  </div>
+
+  <!-- ── PANEL 2: Velg klipp ── -->
+  <div class="panel" id="panel2">
+
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div class="slabel" style="margin-bottom:0">Velg multicam-klipp</div>
+        <button class="reload-btn" onclick="loadClips()">↺ Oppdater</button>
+      </div>
+      <input type="text" id="clipSearch" placeholder="Søk i klipp..." oninput="filterClips()"
+             style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+                    padding:6px 10px; font-size:12px; border-radius:3px; margin-bottom:8px;
+                    font-family:'Segoe UI',Arial,sans-serif;">
+      <div class="clip-list" id="clipList">
+        <div class="mt-empty">Laster klipp...</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goToStep(1)">← Tilbake</button>
+      <button class="btn-primary" id="toStep3Btn" onclick="goToStep3()" disabled
+              style="width:auto; flex:2;">
+        Bekreft →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── PANEL 3: Bekreft og send ── -->
+  <div class="panel" id="panel3">
+
+    <!-- Resultat (vises etter sending) -->
+    <div class="result-box" id="resultBox">
+      <div class="result-icon" id="resultIcon">✅</div>
+      <div class="result-title" id="resultTitle">—</div>
+      <div class="result-sub"   id="resultSub">—</div>
+      <div class="result-skip"  id="resultSkip" style="display:none"></div>
+      <div id="resultDebugWrap" style="display:none; margin-top:10px;">
+        <button onclick="toggleDebug()" id="resultDebugBtn"
+                style="background:transparent; border:1px solid var(--border); color:var(--sub);
+                       padding:5px 10px; font-size:11px; border-radius:3px; cursor:pointer;
+                       font-family:'Segoe UI',Arial,sans-serif;">
+          ▸ Vis debug-info
+        </button>
+        <pre id="resultDebug" style="display:none; margin-top:8px; padding:8px; background:var(--bg); border:1px solid var(--border); border-radius:4px; font-family:var(--mono); font-size:10px; color:var(--sub); white-space:pre-wrap; word-break:break-all; max-height:240px; overflow:auto;"></pre>
+      </div>
+      <button class="btn-secondary" onclick="reset()" style="margin-top:8px; width:180px;">
+        Ny CSV
+      </button>
+    </div>
+
+    <!-- Oppsummering (vises før sending) -->
+    <div id="summaryWrap">
+      <div class="slabel">Oppsummering</div>
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="summary-key">CSV</span>
+          <span class="summary-val" id="sumCsv">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">Klipp</span>
+          <span class="summary-val accent" id="sumClip">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">Markers</span>
+          <span class="summary-val" id="sumCount">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">Tidsrom</span>
+          <span class="summary-val" id="sumRange">—</span>
+        </div>
+      </div>
+
+      <!-- Manuell start-TC og fps (auto-detect funker ikke for multicam) -->
+      <div class="slabel" style="margin-top:14px;">Klipp-innstillinger</div>
+      <div class="summary-card" style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="flex:0 0 110px; font-size:11px; color:var(--sub);">Start-TC</label>
+          <input type="text" id="inpStartTC" value="09:00:00:00"
+                 style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 8px; font-family:var(--mono); font-size:12px; border-radius:3px;"
+                 placeholder="HH:MM:SS:FF">
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="flex:0 0 110px; font-size:11px; color:var(--sub);">FPS</label>
+          <input type="number" id="inpFps" value="25" min="1" max="120" step="0.001"
+                 style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 8px; font-family:var(--mono); font-size:12px; border-radius:3px;">
+        </div>
+        <div style="font-size:10px; color:var(--muted); margin-top:2px;">
+          Match klippets faktiske source-TC og frame rate. For multicam: sjekk i Modify → Timecode.
+        </div>
+      </div>
+
+      <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+        <button class="btn-primary" id="sendBtn" onclick="sendMarkers()">
+          ✍️  Skriv markers til klipp
+        </button>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="goToStep(2)">← Tilbake</button>
+          <button class="btn-secondary" onclick="clearClipMarkers()" style="color:var(--err); border-color:var(--err)">
+            🗑 Fjern eksisterende
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /body -->
+
+<div class="toast" id="toast"></div>
+
+<!-- CSInterface (må lastes før hovedskripten) -->
+<script src="lib/CSInterface.js"></script>
+<script>
+if (typeof CSInterface === "undefined") {
+  function CSInterface() {}
+  CSInterface.prototype.evalScript = function(script, cb) {
+    console.log("[mock evalScript]", script.substring(0, 80));
+    if (script.indexOf("getMulticamClips") > -1) {
+      cb(JSON.stringify({ ok: true, clips: [
+        { id: "node-001", name: "SYNMAP_DAG1" },
+        { id: "node-002", name: "SYNMAP_DAG2" },
+        { id: "node-003", name: "SYNMAP_DAG3" }
+      ]}));
+    } else if (script.indexOf("addMarkersToClip") > -1) {
+      cb(JSON.stringify({ ok: true, added: 5, skipped: [], clip: "SYNMAP_DAG3", fps: 25 }));
+    } else if (script.indexOf("clearMarkersOnClip") > -1) {
+      cb(JSON.stringify({ ok: true, deleted: 5, clip: "SYNMAP_DAG3" }));
+    } else {
+      cb(JSON.stringify({ ok: true }));
+    }
+  };
+}
+</script>
+
+<script>
+// ── CEP ───────────────────────────────────────────────────────────────────────
+var cs = new CSInterface();
+
+// ── INFO MODAL ────────────────────────────────────────────────────────────────
+function toggleInfo(show) {
+  document.getElementById("infoOverlay").className = show ? "info-overlay show" : "info-overlay";
+}
+
+// ── DIAGNOSTICS ───────────────────────────────────────────────────────────────
+function runDiagnostics() {
+  var out = document.getElementById("diagOutput");
+  out.textContent = "Kjører tester...\n";
+
+  var tests = [
+    { name: "1: Basis ExtendScript",   script: "1+1" },
+    { name: "2: helloTest()",          script: "helloTest()" },
+    { name: "3: helloTestJSON()",      script: "helloTestJSON()" },
+    { name: "4: app.version",          script: "app.version" },
+    { name: "5: numItems",             script: "String(app.project.rootItem.children.numItems)" },
+    { name: "6: item[0].name",         script: "String(app.project.rootItem.children[0].name)" },
+    { name: "7: item[0].type",         script: "String(app.project.rootItem.children[0].type)" },
+    { name: "8: getItemAt(0).name",    script: "app.project.rootItem.children.getItemAt ? String(app.project.rootItem.children.getItemAt(0).name) : 'no getItemAt'" },
+    { name: "9: listItemNamesFlat()",  script: "listItemNamesFlat()" },
+    { name: "10: getMulticamClips()",  script: "getMulticamClips()" }
+  ];
+
+  var i = 0;
+  var lines = [];
+  function next() {
+    if (i >= tests.length) {
+      out.textContent = lines.join("\n") + "\n\n— Send dette til Victoria —";
+      return;
+    }
+    var t = tests[i++];
+    cs.evalScript(t.script, function(r) {
+      var got = (r === null || r === undefined || r === "") ? "(tom)" : String(r);
+      var ok = got !== "(tom)" && got !== "EvalScript error." && got !== "undefined";
+      lines.push((ok ? "✓" : "✗") + " " + t.name + ": " + got);
+      out.textContent = lines.join("\n");
+      next();
+    });
+  }
+  next();
+}
+
+// ── DEBUG TOGGLE ──────────────────────────────────────────────────────────────
+function toggleDebug() {
+  var dbg = document.getElementById("resultDebug");
+  var btn = document.getElementById("resultDebugBtn");
+  var isOpen = dbg.style.display === "block";
+  dbg.style.display = isOpen ? "none" : "block";
+  btn.textContent = isOpen ? "▸ Vis debug-info" : "▾ Skjul debug-info";
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var csvMarkers  = [];   // [{timecode, comment, color}, ...]
+var csvFilename = "";
+var selectedClipId   = null;
+var selectedClipName = "";
+
+// ── FARGER ────────────────────────────────────────────────────────────────────
+var COLOR_HEX = {
+  yellow: "#F5C518", red: "#E03131", green: "#2F9E44",
+  blue: "#1971C2",   cyan: "#0C8599", purple: "#6741D9"
+};
+
+// ── CSV PARSING ───────────────────────────────────────────────────────────────
+/*
+  Støttede CSV-formater (ingen header nødvendig, men støttes):
+    19:20:00:00,Full TC                  ← anbefalt (framenøyaktig, matcher Premiere wall-clock TC)
+    19:20:30,Kutt her                    ← HH:MM:SS
+    19:20,God åpning                     ← HH:MM
+    19.20,Sending starter                ← HH.MM (Teams-format)
+    19.20.30,Intervju begynner
+    "19:20:00:00","Kommentar med komma, inne"
+*/
+var TC_PATTERN = /^(\d{1,2})[\.:](\d{2})(?:[\.:](\d{2})(?:[:;](\d{2}))?)?$/;
+
+function parseCSV(text) {
+  var lines  = text.split(/\r?\n/);
+  var result = [];
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    // Split på komma — respekter anførselstegn
+    var cols = splitCSVLine(line);
+    if (cols.length < 2) continue;
+
+    var tc  = cols[0].trim().replace(/^["']|["']$/g, "");
+    var cmt = cols[1].trim().replace(/^["']|["']$/g, "");
+    var col = cols[2] ? cols[2].trim().replace(/^["']|["']$/g, "").toLowerCase() : "yellow";
+
+    // Hopp over header-rader
+    if (tc.toLowerCase() === "tid" || tc.toLowerCase() === "klokkeslett" ||
+        tc.toLowerCase() === "tc"  || tc.toLowerCase() === "timecode") continue;
+
+    if (!TC_PATTERN.test(tc)) continue;
+    if (!cmt) continue;
+    if (!COLOR_HEX[col]) col = "yellow";
+
+    result.push({ timecode: tc, comment: cmt, color: col });
+  }
+
+  return result;
+}
+
+function splitCSVLine(line) {
+  var cols = [];
+  var cur  = "";
+  var inQ  = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"' || c === "'") { inQ = !inQ; continue; }
+    if (c === "," && !inQ) { cols.push(cur); cur = ""; continue; }
+    cur += c;
+  }
+  cols.push(cur);
+  return cols;
+}
+
+// ── FILE INPUT ────────────────────────────────────────────────────────────────
+document.getElementById("csvFileInput").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  loadFile(file);
+});
+
+// Drag & drop
+var dz = document.getElementById("dropzone");
+dz.addEventListener("dragover",  function(e) { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", function()  { dz.classList.remove("over"); });
+dz.addEventListener("drop", function(e) {
+  e.preventDefault(); dz.classList.remove("over");
+  var file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+function loadFile(file) {
+  csvFilename = file.name;
+  var reader  = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    csvMarkers = parseCSV(text);
+
+    if (csvMarkers.length === 0) {
+      showToast("Ingen gyldige rader funnet i CSV", "error");
+      return;
+    }
+
+    // Vis info
+    document.getElementById("csvInfo").className      = "csv-info show";
+    document.getElementById("csvFilename").textContent = csvFilename;
+    document.getElementById("csvCount").textContent    = csvMarkers.length + " markers";
+
+    // Vis preview
+    renderPreview();
+    document.getElementById("previewWrap").style.display = "block";
+    document.getElementById("toStep2Btn").disabled = false;
+
+    showToast("Lastet " + csvMarkers.length + " markers fra " + csvFilename, "ok");
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function renderPreview() {
+  var body = document.getElementById("previewBody");
+  body.innerHTML = "";
+  csvMarkers.forEach(function(m) {
+    var hex = COLOR_HEX[m.color] || COLOR_HEX.yellow;
+    var row = document.createElement("div");
+    row.className = "mt-row";
+    row.innerHTML =
+      '<span class="mt-tc">'      + esc(m.timecode) + '</span>' +
+      '<span class="mt-comment">' + esc(m.comment)  + '</span>' +
+      '<div class="mt-color-dot" style="background:' + hex + '"></div>';
+    body.appendChild(row);
+  });
+}
+
+// ── STEP 2: KLIPP ────────────────────────────────────────────────────────────
+function goToStep2() {
+  goToStep(2);
+  loadClips();
+}
+
+var allClips = [];
+
+function loadClips(retryCount) {
+  retryCount = retryCount || 0;
+  var list = document.getElementById("clipList");
+  list.innerHTML = '<div class="mt-empty">Laster' + (retryCount > 0 ? ' (forsøk ' + (retryCount+1) + ')' : '') + '...</div>';
+
+  // Safety timeout — if Premiere/ExtendScript never calls back
+  var timeout = setTimeout(function() {
+    if (list.innerHTML.indexOf("Laster") !== -1) {
+      list.innerHTML =
+        '<div class="mt-empty" style="text-align:left;">' +
+        '<strong style="color:var(--warn);">Ingen respons fra Premiere etter 10 sek</strong><br><br>' +
+        'Sjekk:<br>' +
+        '• At et prosjekt er åpent i Premiere<br>' +
+        '• At pluginen er installert riktig (Window → Extensions)<br>' +
+        '• Restart Premiere helt (Cmd+Q) og prøv igjen' +
+        '</div>';
+    }
+  }, 10000);
+
+  cs.evalScript("getMulticamClips()", function(result) {
+    clearTimeout(timeout);
+
+    // Race condition: host.jsx not loaded yet. Retry up to 3x with delay.
+    var isEvalError = (result === undefined || result === null || result === "" || result === "EvalScript error.");
+    if (isEvalError && retryCount < 3) {
+      setTimeout(function() { loadClips(retryCount + 1); }, 500 * (retryCount + 1));
+      return;
+    }
+
+    if (isEvalError) {
+      list.innerHTML =
+        '<div class="mt-empty" style="text-align:left;">' +
+        '<strong style="color:var(--err);">ExtendScript-feil</strong><br><br>' +
+        'host.jsx kunne ikke kjøres. Sjekk at filen finnes:<br>' +
+        '<code style="font-size:9px;">~/Library/Application Support/Adobe/CEP/<br>extensions/com.render.teamsmc2/host/host.jsx</code><br><br>' +
+        '<button onclick="runDiagnostics()" style="background:var(--accent); color:#fff; border:none; padding:6px 12px; font-size:11px; border-radius:3px; cursor:pointer; margin-top:6px;">🔧 Kjør diagnostikk</button>' +
+        '<div id="diagOutput" style="margin-top:10px; font-family:var(--mono); font-size:10px; color:var(--sub); white-space:pre-wrap;"></div>' +
+        '</div>';
+      return;
+    }
+
+    try {
+      var r = JSON.parse(result);
+      if (!r.ok) {
+        list.innerHTML =
+          '<div class="mt-empty" style="text-align:left;">' +
+          '<strong style="color:var(--err);">Feil fra Premiere:</strong><br><br>' +
+          esc(r.error || "Ukjent feil") +
+          '</div>';
+        return;
+      }
+      allClips = r.clips || [];
+      renderClips(allClips);
+    } catch (e) {
+      list.innerHTML =
+        '<div class="mt-empty" style="text-align:left;">' +
+        '<strong style="color:var(--err);">Kunne ikke lese respons</strong><br><br>' +
+        '<code style="font-size:9px; word-break:break-all;">' +
+        esc(String(result).substring(0, 300)) +
+        '</code>' +
+        '</div>';
+    }
+  });
+}
+
+function filterClips() {
+  var q = (document.getElementById("clipSearch").value || "").trim().toLowerCase();
+  if (!q) { renderClips(allClips); return; }
+  var filtered = allClips.filter(function(c) {
+    return c.name && c.name.toLowerCase().indexOf(q) !== -1;
+  });
+  renderClips(filtered);
+}
+
+function renderClips(clips) {
+  var list = document.getElementById("clipList");
+  list.innerHTML = "";
+
+  if (!clips || clips.length === 0) {
+    var q = (document.getElementById("clipSearch") || {}).value || "";
+    list.innerHTML = '<div class="mt-empty">' +
+      (q ? 'Ingen klipp matcher "' + esc(q) + '"' : 'Ingen klipp funnet i prosjektet') +
+      '</div>';
+    return;
+  }
+
+  clips.forEach(function(clip) {
+    var item = document.createElement("div");
+    item.className = "clip-item" + (clip.id === selectedClipId ? " selected" : "");
+    item.innerHTML =
+      '<div class="clip-radio"></div>' +
+      '<span class="clip-name">' + esc(clip.name) + '</span>';
+    item.onclick = function() {
+      selectedClipId   = clip.id;
+      selectedClipName = clip.name;
+      document.querySelectorAll(".clip-item").forEach(function(el) {
+        el.classList.remove("selected");
+        el.querySelector(".clip-radio").style.background = "";
+      });
+      item.classList.add("selected");
+      document.getElementById("toStep3Btn").disabled = false;
+    };
+    list.appendChild(item);
+  });
+}
+
+// ── STEP 3: BEKREFT ───────────────────────────────────────────────────────────
+function goToStep3() {
+  if (!selectedClipId) return;
+
+  // Fyll oppsummering
+  document.getElementById("sumCsv").textContent   = csvFilename;
+  document.getElementById("sumClip").textContent  = selectedClipName;
+  document.getElementById("sumCount").textContent = csvMarkers.length + " stk";
+
+  var first = csvMarkers[0].timecode;
+  var last  = csvMarkers[csvMarkers.length - 1].timecode;
+  document.getElementById("sumRange").textContent = first + " → " + last;
+
+  // Reset result-view
+  document.getElementById("resultBox").className  = "result-box";
+  document.getElementById("summaryWrap").style.display = "block";
+
+  goToStep(3);
+}
+
+// ── SEND MARKERS ──────────────────────────────────────────────────────────────
+function sendMarkers() {
+  if (!selectedClipId || csvMarkers.length === 0) return;
+
+  var btn = document.getElementById("sendBtn");
+  btn.disabled    = true;
+  btn.textContent = "Sender...";
+
+  var json    = JSON.stringify(csvMarkers);
+  var escaped = json.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+  var startTC = (document.getElementById("inpStartTC").value || "").trim();
+  var fpsVal  = (document.getElementById("inpFps").value || "").trim();
+
+  cs.evalScript(
+    'addMarkersToClip("' + selectedClipId + '", "' + escaped + '", "' + startTC + '", "' + fpsVal + '")',
+    function(result) {
+      btn.disabled    = false;
+      btn.textContent = "✍️  Skriv markers til klipp";
+
+      try {
+        var r = JSON.parse(result);
+        document.getElementById("summaryWrap").style.display = "none";
+        var rb = document.getElementById("resultBox");
+        rb.className = "result-box show";
+
+        if (r.ok) {
+          document.getElementById("resultIcon").textContent  = "✅";
+          document.getElementById("resultTitle").textContent = r.added + " markers lagt til";
+          document.getElementById("resultSub").textContent   = "På klipp: " + r.clip + "  ·  " + r.fps + "fps  ·  startTC: " + r.startTC;
+          if (r.skipped && r.skipped.length > 0) {
+            var sk = document.getElementById("resultSkip");
+            sk.style.display  = "block";
+            sk.textContent    = "Hoppet over: " + r.skipped.join(", ");
+          }
+          var dbg = document.getElementById("resultDebug");
+          var dbgWrap = document.getElementById("resultDebugWrap");
+          dbgWrap.style.display = "block";
+          dbg.style.display = "none"; // collapsed by default
+          document.getElementById("resultDebugBtn").textContent = "▸ Vis debug-info";
+          dbg.textContent =
+            "startTC: " + r.startTC + " (ticks=" + r.startTCticks + ")\n" +
+            "fps: " + r.fps + "\n" +
+            "markers før: " + r.markersBefore + " → etter: " + r.markersAfter + "\n" +
+            "── per marker ──\n" +
+            (r.debug || []).join("\n");
+          setStepDone(1); setStepDone(2); setStepDone(3);
+        } else {
+          document.getElementById("resultIcon").textContent  = "❌";
+          document.getElementById("resultTitle").textContent = "Noe gikk galt";
+          document.getElementById("resultSub").textContent   = r.error;
+        }
+      } catch(e) {
+        showToast("Ukjent feil", "error");
+      }
+    }
+  );
+}
+
+// ── FJERN MARKERS ─────────────────────────────────────────────────────────────
+function clearClipMarkers() {
+  if (!selectedClipId) return;
+  cs.evalScript('clearMarkersOnClip("' + selectedClipId + '")', function(result) {
+    try {
+      var r = JSON.parse(result);
+      if (r.ok) showToast("Fjernet " + r.deleted + " markers fra " + r.clip, "warn");
+      else       showToast(r.error, "error");
+    } catch(e) { showToast("Feil", "error"); }
+  });
+}
+
+// ── STEP NAV ──────────────────────────────────────────────────────────────────
+function goToStep(n) {
+  for (var i = 1; i <= 3; i++) {
+    document.getElementById("panel" + i).className = "panel" + (i === n ? " active" : "");
+    var s = document.getElementById("step" + i);
+    if (!s.classList.contains("done")) {
+      s.className = "step" + (i === n ? " active" : "");
+    }
+  }
+}
+function setStepDone(n) {
+  document.getElementById("step" + n).className = "step done";
+}
+
+function reset() {
+  csvMarkers = []; csvFilename = "";
+  selectedClipId = null; selectedClipName = "";
+  document.getElementById("csvInfo").className      = "csv-info";
+  document.getElementById("previewWrap").style.display = "none";
+  document.getElementById("toStep2Btn").disabled    = true;
+  document.getElementById("csvFileInput").value     = "";
+  for (var i = 1; i <= 3; i++) {
+    document.getElementById("step" + i).className = "step" + (i === 1 ? " active" : "");
+  }
+  goToStep(1);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+var _toastTimer;
+function showToast(msg, type) {
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className   = "toast show" + (type ? " " + type : "");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.className = "toast"; }, 3800);
+}
+</script>
+
+</body>
+</html>

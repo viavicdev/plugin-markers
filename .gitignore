@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Built apps (regenerable from build.sh)
+*.app/
+TeamsToCSV/teams2csv
+TeamsToCSV/RenderSuiteInstaller
+
+# Intermediate icon files (regenerable from generate_icon.py)
+TeamsToCSV/AppIcon.iconset/
+
+# Bundled animation copies inside Installer (regenerable from build.sh)
+Installer/Resources/animation/
+
+# Built dist zips (use GitHub Releases for these)
+dist/zips/*.zip
+dist/archive/*.zip
+
+# Unpacked dist mirrors (regenerable from build pipeline)
+dist/unpacked/
+
+# Stray screenshots and ad-hoc files
+/Skjermbilde*.png
+/animsjon.html
+
+# Temporary files
+/tmp/
+*.swp
+*.swo
