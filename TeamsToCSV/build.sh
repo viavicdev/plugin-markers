@@ -12,11 +12,16 @@ echo "▸ Cleaning old build..."
 rm -rf "$APP" "$BIN" teams2csv
 
 echo "▸ Generating app icon..."
-python3 generate_icon.py
+if [ ! -f AppIcon.icns ] || python3 -c "import PIL" 2>/dev/null; then
+    python3 generate_icon.py 2>/dev/null || echo "  (skipping — using existing AppIcon.icns)"
+else
+    echo "  (using existing AppIcon.icns — PIL not installed)"
+fi
 
 echo "▸ Compiling SwiftUI app..."
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp AppIcon.icns "$APP/Contents/Resources/"
+cp ../assets/animation/timeline-bw.html "$APP/Contents/Resources/timeline-bw.html"
 swiftc -O -parse-as-library -o "$APP/Contents/MacOS/$BIN" main.swift
 
 echo "▸ Writing Info.plist..."

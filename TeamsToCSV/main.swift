@@ -6,6 +6,26 @@ import Vision
 import AppKit
 import CoreImage
 import UniformTypeIdentifiers
+import WebKit
+
+// ─── COLORS (soft canvas + svevende kort med skygge) ─────────────────────────
+extension Color {
+    static let canvas      = Color(red: 0.13, green: 0.13, blue: 0.16)    // #21212A dark glass base
+    static let card        = Color.white                                   // #FFFFFF
+    static let cardBehind  = Color(red: 0.84, green: 0.84, blue: 0.88)    // #D6D6E0
+    static let ink         = Color(red: 0.04, green: 0.04, blue: 0.04)    // #0A0A0A
+    static let inkSoft     = Color(red: 0.36, green: 0.36, blue: 0.39)    // #5C5C63
+    static let inkFaded    = Color(red: 0.60, green: 0.60, blue: 0.63)    // #999AA0
+    static let line        = Color(red: 0.89, green: 0.89, blue: 0.92)    // #E2E2EA
+    static let surfaceMute = Color(red: 0.96, green: 0.96, blue: 0.97)    // #F5F5F7
+    static let brandAccent = Color(red: 0.859, green: 0.102, blue: 0.102) // #DB1A1A
+    static let brandAccentDim = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.10)
+
+    // Tekstfarger som ligger DIREKTE på mørk canvas
+    static let inkOnDark      = Color.white
+    static let inkOnDarkSoft  = Color(red: 0.70, green: 0.70, blue: 0.75)  // #B3B3BF
+    static let inkOnDarkFaded = Color(red: 0.50, green: 0.50, blue: 0.56)  // #80808F
+}
 
 // ─── OCR ENGINE OPTIONS ──────────────────────────────────────────────────────
 enum OCREngine: String, CaseIterable, Identifiable {
@@ -31,18 +51,98 @@ struct TeamsToCSVApp: App {
     }
 }
 
+// ─── HTML ANIMATION VIEW ─────────────────────────────────────────────────────
+struct AnimationView: NSViewRepresentable {
+    let htmlName: String
+
+    func makeNSView(context: Context) -> WKWebView {
+        let webview = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        webview.setValue(false, forKey: "drawsBackground")
+        webview.layer?.backgroundColor = NSColor.clear.cgColor
+        if let url = Bundle.main.url(forResource: htmlName, withExtension: "html") {
+            webview.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
+        return webview
+    }
+    func updateNSView(_ nsView: WKWebView, context: Context) {}
+}
+
+// ─── FROSTED DARK GLASS BAKGRUNN ─────────────────────────────────────────────
+struct NoiseBackground: View {
+    let baseColor: Color
+    private let noiseImage: NSImage = makeNoise(size: CGSize(width: 240, height: 240))
+
+    var body: some View {
+        ZStack {
+            // Base dark
+            baseColor
+
+            // Soft radial highlight (som lys treffer glass) — øverst venstre
+            RadialGradient(
+                colors: [Color.white.opacity(0.10), Color.clear],
+                center: UnitPoint(x: 0.2, y: 0.1),
+                startRadius: 50,
+                endRadius: 500
+            )
+
+            // Sekundær subtle accent-glød — nederst høyre
+            RadialGradient(
+                colors: [Color.brandAccent.opacity(0.06), Color.clear],
+                center: UnitPoint(x: 0.95, y: 0.95),
+                startRadius: 40,
+                endRadius: 350
+            )
+
+            // Veldig subtil grain (frosted-feel uten å bli "kornet")
+            Image(nsImage: noiseImage)
+                .resizable(resizingMode: .tile)
+                .opacity(0.08)
+                .blendMode(.softLight)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
+private func makeNoise(size: CGSize) -> NSImage {
+    let w = Int(size.width)
+    let h = Int(size.height)
+    guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: w, pixelsHigh: h,
+        bitsPerSample: 8, samplesPerPixel: 4,
+        hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: w * 4, bitsPerPixel: 32
+    ) else { return NSImage(size: size) }
+
+    var pixel: [Int] = [0, 0, 0, 0]
+    for y in 0..<h {
+        for x in 0..<w {
+            let v = Int.random(in: 0...255)
+            let a = Int.random(in: 18...64)
+            pixel[0] = v; pixel[1] = v; pixel[2] = v; pixel[3] = a
+            pixel.withUnsafeMutableBufferPointer { buf in
+                rep.setPixel(buf.baseAddress!, atX: x, y: y)
+            }
+        }
+    }
+    let img = NSImage(size: size)
+    img.addRepresentation(rep)
+    return img
+}
+
 // ─── MODELS ──────────────────────────────────────────────────────────────────
-struct CSVRow: Identifiable {
+struct CSVRow: Identifiable, Equatable {
     let id = UUID()
-    let tc: String
-    let comment: String
+    var tc: String
+    var comment: String
 }
 
 struct ProcessedFile: Identifiable {
     let id = UUID()
     let pngURL: URL
     let csvURL: URL
-    let rows: [CSVRow]
+    var rows: [CSVRow]
     var markerCount: Int { rows.count }
 }
 
@@ -62,11 +162,12 @@ struct ContentView: View {
     @State private var processedFiles: [ProcessedFile] = []
     @State private var errorMessage: String?
     @State private var isProcessing = false
-    @State private var engine: OCREngine = .tesseract
     @State private var showInfo = false
     @State private var showSettings = false
 
     // Persisted settings
+    @AppStorage("ocrEngine")        private var engine: OCREngine = .tesseract
+    @AppStorage("tesseractFallback") private var tesseractFallback: Bool = true
     @AppStorage("saveLocationMode") private var saveLocationMode: SaveLocationMode = .alongside
     @AppStorage("customSavePath")   private var customSavePath: String = ""
     @AppStorage("exportPDF")        private var exportPDF: Bool = false
@@ -81,11 +182,13 @@ struct ContentView: View {
             Divider()
             resultsList
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(NoiseBackground(baseColor: Color.canvas).ignoresSafeArea())
         .sheet(isPresented: $showInfo) { InfoSheet(isPresented: $showInfo) }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
                 isPresented: $showSettings,
+                engine: $engine,
+                tesseractFallback: $tesseractFallback,
                 saveLocationMode: $saveLocationMode,
                 customSavePath: $customSavePath,
                 exportPDF: $exportPDF,
@@ -94,19 +197,25 @@ struct ContentView: View {
         }
     }
 
-    // Header
+    // Header — på mørk canvas, lys tekst
     private var header: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
+                // Brand mark + tittel
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Circle().fill(Color.brandAccent).frame(width: 6, height: 6)
+                        Text("RENDER")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .tracking(2.0)
+                            .foregroundColor(.inkOnDarkSoft)
+                    }
                     HStack(spacing: 8) {
                         Text("Teams → CSV")
                             .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.inkOnDark)
                         BetaBadge()
                     }
-                    Text("Offline OCR · ingen API · ingen data sendes ut")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
                 }
                 Spacer()
                 if !processedFiles.isEmpty {
@@ -115,8 +224,13 @@ struct ContentView: View {
                         errorMessage = nil
                     } label: {
                         Label("Tøm", systemImage: "trash")
+                            .font(.system(size: 11))
                     }
-                    .controlSize(.small)
+                    .buttonStyle(.plain)
+                    .foregroundColor(.inkOnDarkSoft)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.white.opacity(0.08)))
                 }
                 Button {
                     showSettings = true
@@ -125,7 +239,7 @@ struct ContentView: View {
                         .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.secondary)
+                .foregroundColor(.inkOnDarkSoft)
                 .help("Innstillinger")
 
                 Button {
@@ -135,77 +249,72 @@ struct ContentView: View {
                         .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.secondary)
+                .foregroundColor(.inkOnDarkSoft)
                 .help("Om / personvern")
             }
 
-            HStack(spacing: 10) {
-                Label {
-                    Text("OCR-motor")
-                        .font(.system(size: 11, weight: .medium))
-                } icon: {
-                    Image(systemName: "doc.text.viewfinder")
+            // Subtil motor-indikator
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text.viewfinder")
+                    .font(.system(size: 10))
+                Text(engineLabel)
+                    .font(.system(size: 11))
+                if engine == .tesseract && tesseractPath == nil && tesseractFallback {
+                    Text("· faller tilbake til Apple Vision")
                         .font(.system(size: 11))
+                        .foregroundColor(.brandAccent)
                 }
-                .foregroundColor(.secondary)
-
-                Picker("", selection: $engine) {
-                    ForEach(OCREngine.allCases) { e in
-                        Text(e.rawValue).tag(e)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .controlSize(.small)
-                .frame(maxWidth: 320)
-
                 Spacer()
             }
-
-            if engine == .tesseract && tesseractPath == nil {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text("Tesseract ikke funnet — kjør: brew install tesseract tesseract-lang")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-            }
+            .foregroundColor(.inkOnDarkFaded)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
     }
 
+    private var engineLabel: String {
+        switch engine {
+        case .tesseract:
+            return tesseractPath == nil ? "Tesseract (ikke installert)" : "Tesseract (norsk)"
+        case .vision:
+            return "Apple Vision"
+        }
+    }
+
     // Drop zone
     private var dropZone: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            // Semi-transparent fyll så glass-canvas skinner gjennom
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isDragging
+                      ? Color.brandAccent.opacity(0.15)
+                      : Color.white.opacity(0.06))
+                .shadow(color: .black.opacity(0.20), radius: 12, y: 4)
+
+            // Tydeligere kant
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(
-                    isDragging ? Color.accentColor : Color.gray.opacity(0.4),
-                    style: StrokeStyle(lineWidth: 2, dash: [6, 4])
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isDragging
-                              ? Color.accentColor.opacity(0.10)
-                              : Color.gray.opacity(0.04))
+                    isDragging ? Color.brandAccent : Color.white.opacity(0.25),
+                    style: StrokeStyle(lineWidth: 1.5, dash: [7, 5])
                 )
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 if isProcessing {
-                    ProgressView().scaleEffect(0.8)
+                    AnimationView(htmlName: "timeline-bw")
+                        .frame(width: 140, height: 80)
                     Text("Kjører OCR...")
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.inkOnDarkSoft)
                 } else {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 36))
-                        .foregroundColor(isDragging ? .accentColor : .secondary)
+                        .foregroundColor(isDragging ? .brandAccent : .inkOnDarkSoft)
                     Text(isDragging ? "Slipp her" : "Dra PNG/JPG hit")
                         .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.inkOnDark)
                     Text("eller klikk for å velge filer")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.inkOnDarkFaded)
                 }
             }
         }
@@ -226,10 +335,10 @@ struct ContentView: View {
                 Spacer()
                 Image(systemName: "doc.text")
                     .font(.system(size: 24))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundColor(.inkOnDarkFaded)
                 Text("Ingen filer behandlet ennå")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.inkOnDarkSoft)
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -240,22 +349,23 @@ struct ContentView: View {
                     if let err = errorMessage {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
+                                .foregroundColor(.brandAccent)
                             Text(err).font(.system(size: 12))
                             Spacer()
                             Button("✕") { errorMessage = nil }
                                 .buttonStyle(.plain)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.inkSoft)
                         }
                         .padding(10)
-                        .background(Color.orange.opacity(0.1))
+                        .background(Color.brandAccentDim)
                         .cornerRadius(6)
                     }
-                    ForEach(processedFiles) { file in
+                    ForEach($processedFiles) { $file in
                         FileRow(
-                            file: file,
+                            file: $file,
                             onDownload: { saveCSV(file) },
-                            onShowInFinder: { NSWorkspace.shared.activateFileViewerSelecting([file.csvURL]) }
+                            onShowInFinder: { NSWorkspace.shared.activateFileViewerSelecting([file.csvURL]) },
+                            onRemove: { processedFiles.removeAll { $0.id == file.id } }
                         )
                     }
                 }
@@ -301,6 +411,7 @@ struct ContentView: View {
         errorMessage = nil
         isProcessing = true
         let selectedEngine = engine
+        let fallback = tesseractFallback
         let saveMode = saveLocationMode
         let customPath = customSavePath
         let alsoPDF = exportPDF
@@ -317,8 +428,8 @@ struct ContentView: View {
                 let outputDir = resolveSaveDirectory(
                     mode: saveMode, customPath: customPath, fallback: url.deletingLastPathComponent()
                 )
-                switch ocrToCSV(url: url, engine: selectedEngine, outputDir: outputDir,
-                                alsoPDF: alsoPDF, alsoXLSX: alsoXLSX) {
+                switch ocrToCSV(url: url, engine: selectedEngine, fallbackToVision: fallback,
+                                outputDir: outputDir, alsoPDF: alsoPDF, alsoXLSX: alsoXLSX) {
                 case .success(let result): results.append(result)
                 case .failure(let err):    errors.append("\(url.lastPathComponent): \(err.localizedDescription)")
                 }
@@ -349,11 +460,12 @@ struct ContentView: View {
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.directoryURL = file.pngURL.deletingLastPathComponent()
         if panel.runModal() == .OK, let dest = panel.url {
+            // Regenerer CSV fra nåværende (potentielt redigerte) rader
+            let csv = file.rows.map { "\($0.tc),\(csvEscape($0.comment))" }.joined(separator: "\n") + "\n"
             do {
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    try FileManager.default.removeItem(at: dest)
-                }
-                try FileManager.default.copyItem(at: file.csvURL, to: dest)
+                try csv.write(to: dest, atomically: true, encoding: .utf8)
+                // Også oppdater den opprinnelige CSV-en ved siden av PNG
+                try? csv.write(to: file.csvURL, atomically: true, encoding: .utf8)
             } catch {
                 errorMessage = "Lagring feilet: \(error.localizedDescription)"
             }
@@ -363,27 +475,33 @@ struct ContentView: View {
 
 // ─── BETA BADGE ──────────────────────────────────────────────────────────────
 struct BetaBadge: View {
+    // Lysere coral-rød (mer leselig på mørk bakgrunn enn deep brand red)
+    private let lightRed = Color(red: 1.0, green: 0.40, blue: 0.40) // #FF6666
+    private let lightRedBg = Color(red: 1.0, green: 0.40, blue: 0.40).opacity(0.16)
+
     var body: some View {
         Text("BETA")
             .font(.system(size: 9, weight: .bold, design: .monospaced))
             .tracking(0.8)
-            .foregroundColor(.orange)
+            .foregroundColor(lightRed)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(Color.orange, lineWidth: 1)
-                    .background(RoundedRectangle(cornerRadius: 3).fill(Color.orange.opacity(0.12)))
+                    .strokeBorder(lightRed, lineWidth: 1)
+                    .background(RoundedRectangle(cornerRadius: 3).fill(lightRedBg))
             )
     }
 }
 
 // ─── FILE ROW ────────────────────────────────────────────────────────────────
 struct FileRow: View {
-    let file: ProcessedFile
+    @Binding var file: ProcessedFile
     let onDownload: () -> Void
     let onShowInFinder: () -> Void
+    let onRemove: () -> Void
     @State private var showAll: Bool = false
+    @State private var isEditing: Bool = false
 
     private let initialRows = 6
 
@@ -402,21 +520,39 @@ struct FileRow: View {
                     HStack(spacing: 6) {
                         Text("\(file.markerCount) markers")
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.inkSoft)
                         Text("·")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.inkSoft)
                         Text(file.csvURL.lastPathComponent)
                             .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.inkSoft)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
                 }
                 Spacer()
+
+                Button {
+                    isEditing.toggle()
+                } label: {
+                    Label(isEditing ? "Ferdig" : "Rediger",
+                          systemImage: isEditing ? "checkmark" : "pencil")
+                }
+                .controlSize(.small)
+
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.inkSoft)
+                .help("Fjern fra listen")
             }
 
             // ── Table preview ──
-            CSVTablePreview(rows: file.rows, showAll: $showAll, limit: initialRows)
+            CSVTablePreview(rows: $file.rows, showAll: $showAll, limit: initialRows, isEditing: isEditing)
 
             // ── Actions ──
             HStack(spacing: 8) {
@@ -445,85 +581,165 @@ struct FileRow: View {
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(.brandAccent)
                 }
             }
         }
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.card)
+                .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.gray.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(isEditing ? Color.brandAccent.opacity(0.5) : Color.line.opacity(0.5), lineWidth: 1)
         )
     }
 }
 
 // ─── CSV TABLE PREVIEW ───────────────────────────────────────────────────────
 struct CSVTablePreview: View {
-    let rows: [CSVRow]
+    @Binding var rows: [CSVRow]
     @Binding var showAll: Bool
     let limit: Int
+    let isEditing: Bool
 
-    private var visibleRows: [CSVRow] {
-        showAll ? rows : Array(rows.prefix(limit))
+    private var visibleCount: Int {
+        showAll ? rows.count : min(limit, rows.count)
     }
+
+    // Lys grå palett
+    private let bgColor       = Color(red: 0.96, green: 0.96, blue: 0.97)  // #F5F5F7 lys
+    private let headerBg      = Color(red: 0.91, green: 0.91, blue: 0.93)  // #E8E8EE litt mørkere
+    private let stripeBg      = Color(red: 0.94, green: 0.94, blue: 0.96)  // #F0F0F4
+    private let lineColor     = Color(red: 0.82, green: 0.82, blue: 0.85)  // #D2D2D9
+    private let textColor     = Color(red: 0.10, green: 0.10, blue: 0.12)  // #1A1A1F
+    private let textSoftColor = Color(red: 0.40, green: 0.40, blue: 0.43)  // #66666E
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack(spacing: 0) {
-                Text("TIMECODE")
-                    .frame(width: 84, alignment: .leading)
+                Text("TIMECODE / KLOKKESLETT")
+                    .frame(width: 150, alignment: .leading)
+                Rectangle().fill(lineColor).frame(width: 1)
                 Text("KOMMENTAR")
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 10)
+                if isEditing {
+                    Text("").frame(width: 28)
+                }
             }
             .font(.system(size: 9, weight: .semibold, design: .monospaced))
             .tracking(1.0)
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.gray.opacity(0.08))
+            .foregroundColor(textSoftColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(headerBg)
+            .overlay(
+                Rectangle().fill(lineColor).frame(height: 1)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            )
 
-            // Rows
-            ForEach(Array(visibleRows.enumerated()), id: \.element.id) { idx, row in
-                HStack(alignment: .top, spacing: 0) {
-                    Text(row.tc)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 84, alignment: .leading)
-                    Text(row.comment)
-                        .font(.system(size: 11))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineLimit(2)
+            // Rader
+            ForEach(0..<visibleCount, id: \.self) { idx in
+                HStack(alignment: .center, spacing: 0) {
+                    if isEditing {
+                        TextField("HH:MM:SS:FF", text: $rows[idx].tc)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundColor(.brandAccent)
+                            .frame(width: 140, alignment: .leading)
+                            .padding(.trailing, 4)
+                        Rectangle().fill(lineColor).frame(width: 1)
+                        TextField("Kommentar", text: $rows[idx].comment)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11))
+                            .foregroundColor(textColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 10)
+                        Button {
+                            if let realIdx = rows.firstIndex(where: { $0.id == rows[idx].id }) {
+                                rows.remove(at: realIdx)
+                            }
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 10))
+                                .foregroundColor(textSoftColor)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 28)
+                    } else {
+                        Text(rows[idx].tc)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.brandAccent)
+                            .frame(width: 150, alignment: .leading)
+                        Rectangle().fill(lineColor).frame(width: 1)
+                        Text(rows[idx].comment)
+                            .font(.system(size: 12))
+                            .foregroundColor(textColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 10)
+                            .lineLimit(2)
+                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(idx % 2 == 0
-                    ? Color.clear
-                    : Color.gray.opacity(0.04))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(idx % 2 == 0 ? bgColor : stripeBg)
+                .overlay(
+                    Rectangle().fill(lineColor.opacity(0.5)).frame(height: 1)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                )
             }
 
+            // Klikkbar expand-rad
             if !showAll && rows.count > limit {
-                HStack {
-                    Text("+ \(rows.count - limit) flere rader")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                    Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showAll = true }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Vis alle \(rows.count) rader (+\(rows.count - limit))")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .foregroundColor(.brandAccent)
+                    .background(headerBg)
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.gray.opacity(0.06))
+                .buttonStyle(.plain)
+            } else if showAll && rows.count > limit {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showAll = false }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Vis færre")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .foregroundColor(.brandAccent)
+                    .background(headerBg)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .background(Color(NSColor.textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(bgColor)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(isEditing ? Color.brandAccent.opacity(0.6) : lineColor, lineWidth: 1)
         )
     }
 }
@@ -544,20 +760,31 @@ enum OCRError: Error, LocalizedError {
     }
 }
 
-func ocrToCSV(url: URL, engine: OCREngine, outputDir: URL,
+func ocrToCSV(url: URL, engine: OCREngine, fallbackToVision: Bool, outputDir: URL,
               alsoPDF: Bool, alsoXLSX: Bool) -> Result<ProcessedFile, OCRError> {
-    let lines: [String]
+    var lines: [String] = []
     switch engine {
     case .vision:
         guard let cg = loadCGImage(url: url) else { return .failure(.decodeFailed) }
         lines = visionOCR(cg)
     case .tesseract:
-        guard let path = tesseractPath else {
-            return .failure(.writeFailed("Tesseract ikke installert. Kjør: brew install tesseract tesseract-lang"))
-        }
-        switch tesseractOCR(url: url, binaryPath: path) {
-        case .success(let l): lines = l
-        case .failure(let e): return .failure(e)
+        if let path = tesseractPath {
+            switch tesseractOCR(url: url, binaryPath: path) {
+            case .success(let l): lines = l
+            case .failure(let e):
+                // Tesseract feilet — fallback til Vision hvis tillatt
+                if fallbackToVision, let cg = loadCGImage(url: url) {
+                    lines = visionOCR(cg)
+                } else {
+                    return .failure(e)
+                }
+            }
+        } else if fallbackToVision {
+            // Tesseract ikke installert — fallback til Vision
+            guard let cg = loadCGImage(url: url) else { return .failure(.decodeFailed) }
+            lines = visionOCR(cg)
+        } else {
+            return .failure(.writeFailed("Tesseract ikke installert. Aktiver fallback i innstillinger."))
         }
     }
 
@@ -754,28 +981,51 @@ func parseTeamsLines(_ lines: [String]) -> [(tc: String, comment: String)] {
               let tcR = Range(m.range, in: line) else { i += 1; continue }
 
         let tc = String(line[tcR]).replacingOccurrences(of: ".", with: ":")
-        var rawComment = String(line[tcR.upperBound...])
+        var pieces: [String] = []
+        let firstChunk = String(line[tcR.upperBound...])
+        pieces.append(firstChunk)
 
-        // Look ahead if comment is empty OR just looks like a name/date/UI noise.
-        // Walk up to 2 lines forward to find the actual message.
-        var lookahead = 0
-        while lookahead < 2,
-              i + 1 + lookahead < lines.count,
-              isUninteresting(cleanComment(rawComment))
-        {
-            let candidate = lines[i + 1 + lookahead]
-            let cr = NSRange(candidate.startIndex..., in: candidate)
-            if tcRegex.firstMatch(in: candidate, range: cr) != nil { break } // next TC line — stop
-            rawComment = candidate
-            lookahead += 1
+        // Hopp først over navn/dato/UI-noise hvis første chunk er det
+        var j = i + 1
+        if isUninteresting(cleanComment(firstChunk)) {
+            // Erstatt med neste linje hvis den ikke er TC eller noise
+            while j < lines.count {
+                let candidate = lines[j]
+                let cr = NSRange(candidate.startIndex..., in: candidate)
+                if tcRegex.firstMatch(in: candidate, range: cr) != nil { break }
+                let cleaned = cleanComment(candidate)
+                if !cleaned.isEmpty && !isUninteresting(cleaned) {
+                    pieces = [candidate]
+                    j += 1
+                    break
+                }
+                j += 1
+            }
         }
-        i += lookahead
 
-        let comment = cleanComment(rawComment)
+        // Akkumuler alle påfølgende linjer som hører til samme melding.
+        // Stopp ved:
+        //   - ny TC-linje
+        //   - en linje som åpenbart er navn (FirstName LastName)
+        //   - end of input
+        while j < lines.count {
+            let candidate = lines[j]
+            let cr = NSRange(candidate.startIndex..., in: candidate)
+            if tcRegex.firstMatch(in: candidate, range: cr) != nil { break }
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nr = NSRange(trimmed.startIndex..., in: trimmed)
+            if nameOnlyRegex.firstMatch(in: trimmed, range: nr) != nil { break }
+            pieces.append(candidate)
+            j += 1
+        }
+
+        // Sett sammen og rens
+        let joined = pieces.joined(separator: " ")
+        let comment = cleanComment(joined)
         if !comment.isEmpty && !isUninteresting(comment) {
             rows.append((tc: tc, comment: comment))
         }
-        i += 1
+        i = j
     }
     return rows
 }
@@ -791,72 +1041,143 @@ func csvEscape(_ s: String) -> String {
 struct InfoSheet: View {
     @Binding var isPresented: Bool
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 10) {
-                    Text("Teams → CSV").font(.system(size: 18, weight: .bold))
-                    BetaBadge()
-                    Spacer()
-                    Button("Lukk") { isPresented = false }.keyboardShortcut(.escape)
+        VStack(spacing: 0) {
+            // Fixed header
+            HStack(spacing: 10) {
+                Circle().fill(Color.brandAccent).frame(width: 8, height: 8)
+                Text("RENDER")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(2.4)
+                    .foregroundColor(.inkOnDarkSoft)
+                Spacer()
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.inkOnDarkSoft)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
 
-                Section(title: "Hva gjør appen") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    // Tittel
+                    HStack(spacing: 10) {
+                        Text("Teams → CSV")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(.inkOnDark)
+                            .tracking(-0.3)
+                        BetaBadge()
+                    }
+
                     Text("Konverterer Teams-screenshots til CSV med timecodes og kommentarer. CSV-en kan importeres i RENDER Multicam Markers-pluginen i Premiere Pro.")
-                }
+                        .font(.system(size: 13))
+                        .foregroundColor(.inkOnDarkSoft)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Section(title: "Personvern") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        bullet("Alt OCR kjøres lokalt på din maskin.")
-                        bullet("Ingen bilder eller data sendes til skyen eller eksterne tjenester.")
-                        bullet("Ingen API-kall, ingen telemetri.")
-                        bullet("Source-PNGer modifiseres aldri (kun lesing).")
+                    InfoCard(title: "Personvern", icon: "lock.shield") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            infoBullet("Alt OCR kjøres lokalt på din maskin")
+                            infoBullet("Ingen bilder eller data sendes til skyen")
+                            infoBullet("Ingen API-kall, ingen telemetri")
+                            infoBullet("Source-PNGer modifiseres aldri")
+                        }
                     }
-                }
 
-                Section(title: "OCR-motorer") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Apple Vision").fontWeight(.semibold)
-                        Text("Innebygd i macOS. Ingen installasjon nødvendig.")
-                            .font(.system(size: 12)).foregroundColor(.secondary)
-                        Text("Tesseract (norsk)").fontWeight(.semibold).padding(.top, 4)
-                        Text("Krever Homebrew. Lastes IKKE ned automatisk. Installeres med:")
-                            .font(.system(size: 12)).foregroundColor(.secondary)
-                        Text("brew install tesseract tesseract-lang")
-                            .font(.system(size: 11, design: .monospaced))
-                            .padding(6)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(4)
-                            .textSelection(.enabled)
+                    InfoCard(title: "OCR-motorer", icon: "doc.text.viewfinder") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Tesseract (norsk)")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.inkOnDark)
+                                Text("Standard. Best på norske tegn. Krever Homebrew (installeres automatisk av installer-en).")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.inkOnDarkSoft)
+                                    .lineSpacing(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Apple Vision")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.inkOnDark)
+                                Text("Innebygd i macOS. Brukes som fallback hvis Tesseract feiler.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.inkOnDarkSoft)
+                            }
+                        }
                     }
-                }
 
-                Section(title: "Kontakt & opphavsrett") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("© ENSAMBLE AS").fontWeight(.semibold)
-                        HStack(spacing: 4) {
-                            Text("Kontakt:")
-                                .foregroundColor(.secondary)
+                    InfoCard(title: "Kontakt", icon: "envelope") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("© ENSAMBLE AS")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.inkOnDark)
                             Text("victoria@ensamble.no")
-                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
+                                .foregroundColor(.brandAccent)
                                 .textSelection(.enabled)
                         }
-                        .font(.system(size: 12))
                     }
                 }
-
-                Spacer(minLength: 10)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-            .padding(20)
         }
-        .frame(width: 500, height: 540)
+        .frame(width: 520, height: 600)
+        .background(Color.canvas)
     }
 
-    private func bullet(_ s: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text("•").foregroundColor(.secondary)
-            Text(s).font(.system(size: 12))
+    private func infoBullet(_ s: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(.brandAccent)
+                .padding(.top, 3)
+            Text(s)
+                .font(.system(size: 12))
+                .foregroundColor(.inkOnDark)
+                .lineSpacing(2)
             Spacer()
         }
+    }
+}
+
+// Reusable card for info sections
+struct InfoCard<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                    .foregroundColor(.brandAccent)
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(1.4)
+                    .foregroundColor(.inkOnDarkSoft)
+            }
+            content()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 }
 
@@ -868,7 +1189,7 @@ struct Section<Content: View>: View {
             Text(title.uppercased())
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .tracking(1.2)
-                .foregroundColor(.accentColor)
+                .foregroundColor(.brandAccent)
             content()
         }
         .padding(.bottom, 4)
@@ -878,92 +1199,174 @@ struct Section<Content: View>: View {
 // ─── SETTINGS SHEET ──────────────────────────────────────────────────────────
 struct SettingsSheet: View {
     @Binding var isPresented: Bool
+    @Binding var engine: OCREngine
+    @Binding var tesseractFallback: Bool
     @Binding var saveLocationMode: SaveLocationMode
     @Binding var customSavePath: String
     @Binding var exportPDF: Bool
     @Binding var exportXLSX: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Innstillinger").font(.system(size: 18, weight: .bold))
+        VStack(spacing: 0) {
+            // Fixed header
+            HStack(spacing: 10) {
+                Circle().fill(Color.brandAccent).frame(width: 8, height: 8)
+                Text("RENDER")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(2.4)
+                    .foregroundColor(.inkOnDarkSoft)
                 Spacer()
-                Button("Lukk") { isPresented = false }.keyboardShortcut(.escape)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("LAGRINGSPLASSERING")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .tracking(1.2).foregroundColor(.accentColor)
-
-                Picker("", selection: $saveLocationMode) {
-                    ForEach(SaveLocationMode.allCases) { m in
-                        Text(m.label).tag(m)
-                    }
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.inkOnDarkSoft)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
 
-                if saveLocationMode == .custom {
-                    HStack(spacing: 8) {
-                        Text(customSavePath.isEmpty ? "Ingen valgt" : customSavePath)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(customSavePath.isEmpty ? .secondary : .primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(4)
-                        Button("Velg mappe...") {
-                            let panel = NSOpenPanel()
-                            panel.canChooseFiles = false
-                            panel.canChooseDirectories = true
-                            panel.allowsMultipleSelection = false
-                            if panel.runModal() == .OK, let url = panel.url {
-                                customSavePath = url.path
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    Text("Innstillinger")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(.inkOnDark)
+                        .tracking(-0.3)
+
+                    InfoCard(title: "OCR-motor", icon: "doc.text.viewfinder") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Picker("", selection: $engine) {
+                                ForEach(OCREngine.allCases) { e in
+                                    Text(e.rawValue).tag(e)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+
+                            if engine == .tesseract {
+                                if tesseractPath != nil {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.brandAccent)
+                                            .font(.system(size: 11))
+                                        Text("Tesseract er installert og klar.")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.inkOnDarkSoft)
+                                    }
+                                } else {
+                                    HStack(alignment: .top, spacing: 6) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.brandAccent)
+                                            .font(.system(size: 11))
+                                            .padding(.top, 1)
+                                        Text("Tesseract ikke installert. Installeres med RENDER Suite Installer eller manuelt via Homebrew.")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.inkOnDarkSoft)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                                Toggle(isOn: $tesseractFallback) {
+                                    Text("Bruk Apple Vision som fallback hvis Tesseract feiler")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.inkOnDark)
+                                }
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                            } else {
+                                Text("Apple Vision er innebygd i macOS — fungerer alltid, men sliter mer med æ/ø/å.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.inkOnDarkSoft)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
-                        .controlSize(.small)
                     }
-                } else {
-                    Text("Filene lagres i samme mappe som PNG-en.")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+
+                    InfoCard(title: "Lagringsplassering", icon: "folder") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Picker("", selection: $saveLocationMode) {
+                                ForEach(SaveLocationMode.allCases) { m in
+                                    Text(m.label).tag(m)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+
+                            if saveLocationMode == .custom {
+                                HStack(spacing: 8) {
+                                    Text(customSavePath.isEmpty ? "Ingen valgt" : customSavePath)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(customSavePath.isEmpty ? .inkOnDarkFaded : .inkOnDark)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .background(Color.white.opacity(0.06))
+                                        .cornerRadius(4)
+                                    Button("Velg mappe…") {
+                                        let panel = NSOpenPanel()
+                                        panel.canChooseFiles = false
+                                        panel.canChooseDirectories = true
+                                        panel.allowsMultipleSelection = false
+                                        if panel.runModal() == .OK, let url = panel.url {
+                                            customSavePath = url.path
+                                        }
+                                    }
+                                    .controlSize(.small)
+                                }
+                            } else {
+                                Text("Filene lagres i samme mappe som PNG-en.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.inkOnDarkSoft)
+                            }
+                        }
+                    }
+
+                    InfoCard(title: "Eksportformater", icon: "doc.on.doc") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.brandAccent)
+                                    .font(.system(size: 11))
+                                Text(".csv")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.inkOnDark)
+                                Text("alltid på")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.inkOnDarkSoft)
+                                Spacer()
+                            }
+                            Toggle(isOn: $exportPDF) {
+                                HStack(spacing: 8) {
+                                    Text(".pdf").font(.system(size: 12, design: .monospaced)).foregroundColor(.inkOnDark)
+                                    Text("PDF-tabell").font(.system(size: 11)).foregroundColor(.inkOnDarkSoft)
+                                }
+                            }
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            Toggle(isOn: $exportXLSX) {
+                                HStack(spacing: 8) {
+                                    Text(".xlsx").font(.system(size: 12, design: .monospaced)).foregroundColor(.inkOnDark)
+                                    Text("Excel-arbeidsbok").font(.system(size: 11)).foregroundColor(.inkOnDarkSoft)
+                                }
+                            }
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                        }
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("EKSPORTFORMATER")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .tracking(1.2).foregroundColor(.accentColor)
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.square.fill").foregroundColor(.green)
-                    Text(".csv").font(.system(size: 12, design: .monospaced))
-                    Text("(alltid)").font(.system(size: 11)).foregroundColor(.secondary)
-                    Spacer()
-                }
-                Toggle(isOn: $exportPDF) {
-                    HStack(spacing: 6) {
-                        Text(".pdf").font(.system(size: 12, design: .monospaced))
-                        Text("PDF-tabell").font(.system(size: 11)).foregroundColor(.secondary)
-                    }
-                }
-                Toggle(isOn: $exportXLSX) {
-                    HStack(spacing: 6) {
-                        Text(".xlsx").font(.system(size: 12, design: .monospaced))
-                        Text("Excel-arbeidsbok").font(.system(size: 11)).foregroundColor(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
         }
-        .padding(20)
-        .frame(width: 460, height: 380)
+        .frame(width: 520, height: 620)
+        .background(Color.canvas)
     }
 }
 

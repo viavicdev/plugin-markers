@@ -1,29 +1,29 @@
-// RENDER Suite Installer
+// RENDER Markers Installer
 // Soft lavender + white card + dark navy aesthetic
 // © ENSAMBLE AS — victoria@ensamble.no
 
 import SwiftUI
 import WebKit
 
-// ─── COLORS (matcher RENDER-pluginen) ────────────────────────────────────────
+// ─── COLORS (mørk canvas, hvit kort, rød accent) ─────────────────────────────
 extension Color {
-    static let canvas      = Color(red: 0.055, green: 0.055, blue: 0.063)  // #0E0E10
-    static let card        = Color(red: 0.090, green: 0.090, blue: 0.102)  // #17171A surface
-    static let cardBehind  = Color(red: 0.122, green: 0.122, blue: 0.141)  // #1F1F24 raised
-    static let ink         = Color(red: 0.937, green: 0.937, blue: 0.937)  // #EFEFEF text
-    static let inkSoft     = Color(red: 0.600, green: 0.600, blue: 0.600)  // #999
-    static let inkFaded    = Color(red: 0.400, green: 0.400, blue: 0.400)  // #666
-    static let line        = Color(red: 0.165, green: 0.165, blue: 0.196)  // #2A2A32 border
-    static let surfaceMute = Color(red: 0.075, green: 0.075, blue: 0.082)  // #131316
-    static let accent      = Color(red: 0.859, green: 0.102, blue: 0.102)  // #DB1A1A red
-    static let accentDim   = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.12)
+    static let canvas      = Color(red: 0.10, green: 0.10, blue: 0.12)    // #1A1A1F dark gray
+    static let card        = Color.white                                   // #FFFFFF
+    static let cardBehind  = Color(red: 0.18, green: 0.18, blue: 0.20)    // #2E2E33
+    static let ink         = Color(red: 0.04, green: 0.04, blue: 0.04)    // #0A0A0A near-black (text on cards)
+    static let inkSoft     = Color(red: 0.36, green: 0.36, blue: 0.39)    // #5C5C63
+    static let inkFaded    = Color(red: 0.60, green: 0.60, blue: 0.63)    // #999AA0
+    static let line        = Color(red: 0.89, green: 0.89, blue: 0.92)    // #E2E2EA
+    static let surfaceMute = Color(red: 0.96, green: 0.96, blue: 0.97)    // #F5F5F7
+    static let accent      = Color(red: 0.859, green: 0.102, blue: 0.102) // #DB1A1A
+    static let accentDim   = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.10)
 }
 
 // ─── APP ENTRY ───────────────────────────────────────────────────────────────
 @main
 struct InstallerApp: App {
     var body: some Scene {
-        WindowGroup("RENDER Suite Installer") {
+        WindowGroup("RENDER Markers Installer") {
             InstallerView()
                 .frame(width: 680, height: 540)
         }
@@ -195,7 +195,7 @@ struct AboutPopover: View {
                     .foregroundColor(.inkFaded)
             }
 
-            Text("RENDER Suite")
+            Text("RENDER Markers")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.ink)
 
@@ -649,10 +649,14 @@ struct InfoRow: View {
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 struct FooterText: View {
     var body: some View {
-        Text("ENSAMBLE AS  ·  victoria@ensamble.no")
-            .font(.system(size: 9, weight: .medium, design: .monospaced))
-            .tracking(1.0)
-            .foregroundColor(.inkFaded)
+        HStack {
+            Spacer()
+            Text("ENSAMBLE AS  ·  victoria@ensamble.no")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(1.0)
+                .foregroundColor(.inkFaded)
+            Spacer()
+        }
     }
 }
 

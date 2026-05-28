@@ -24,10 +24,11 @@ CANVAS = 1024
 PLATE = int(CANVAS * 13 / 16)  # 832
 INSET = (CANVAS - PLATE) // 2  # 96
 
-BG_TOP = (91, 95, 222)
-BG_BOT = (70, 58, 180)
-ACCENT = (255, 255, 255)
-GRID = (255, 255, 255, 200)
+BG_TOP = (35, 35, 42)     # #23232A dark slate
+BG_BOT = (15, 15, 20)     # #0F0F14 near-black
+ACCENT = (255, 255, 255)  # white shapes
+GRID = (255, 255, 255, 180)
+RED_ACCENT = (219, 26, 26, 255)  # #DB1A1A — brand red
 # Corner radius for plate background: (22/100) * plate per Apple template
 PLATE_RADIUS = int(PLATE * 22 / 100)
 
@@ -77,12 +78,12 @@ def draw_plate(*, graphic_scale: float = 0.82) -> Image.Image:
         draw.rounded_rectangle(
             (lx, ly, lx + w, ly + 22 * s),
             radius=int(11 * s),
-            fill=(120, 125, 210),
+            fill=(100, 100, 110),  # gray lines on document
         )
 
     draw.polygon(
         [pt(cx - 35, cy - 28), pt(cx + 60, cy), pt(cx - 35, cy + 28), pt(cx, cy)],
-        fill=ACCENT,
+        fill=RED_ACCENT,
     )
 
     tx0, ty0 = pt(cx + 55, cy - 130)

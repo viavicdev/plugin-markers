@@ -1,10 +1,10 @@
 #!/bin/bash
-# Bygger RENDER Suite Installer.app
+# Bygger RENDER Markers Installer.app
 set -e
 cd "$(dirname "$0")"
 
-APP="RENDER Suite Installer.app"
-BIN="RenderSuiteInstaller"
+APP="RENDER Markers Installer.app"
+BIN="RenderMarkersInstaller"
 
 echo "▸ Rydder gammel build..."
 rm -rf "$APP"
@@ -39,11 +39,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key>
     <string>$BIN</string>
     <key>CFBundleIdentifier</key>
-    <string>no.ensamble.render-suite-installer</string>
+    <string>no.ensamble.render-markers-installer</string>
     <key>CFBundleName</key>
-    <string>RENDER Suite Installer</string>
+    <string>RENDER Markers Installer</string>
     <key>CFBundleDisplayName</key>
-    <string>RENDER Suite Installer</string>
+    <string>RENDER Markers Installer</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundleShortVersionString</key>
