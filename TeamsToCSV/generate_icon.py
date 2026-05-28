@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Generate TeamsToCSV.app icon (1024px master + macOS iconset + .icns).
+"""TeamsToCSV app-ikon: glass-aktig bakgrunn + SVG-shape oppå.
 
-macOS dock sizing: artwork must sit on a 832×832 «plate» centered in 1024×1024
-with transparent margin (~96px per side). Do not pre-apply the system squircle;
-macOS masks at runtime. See Apple HIG / 13:16 safe area.
+Bruker icon-shape.png (rendret fra update.svg) som forgrunns-ikon.
+Anvender et frosted-glass-bakgrunn med subtil rød accent og hvit highlight.
 """
 
 from __future__ import annotations
@@ -12,118 +11,128 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent
 ICONSET = ROOT / "AppIcon.iconset"
 MASTER = ROOT / "AppIcon-1024.png"
 ICNS = ROOT / "AppIcon.icns"
+SHAPE = ROOT / "icon-shape.png"   # rendret fra update.svg via qlmanage
 
 CANVAS = 1024
-# Apple template: art plate is 13/16 of 1024
 PLATE = int(CANVAS * 13 / 16)  # 832
 INSET = (CANVAS - PLATE) // 2  # 96
-
-BG_TOP = (35, 35, 42)     # #23232A dark slate
-BG_BOT = (15, 15, 20)     # #0F0F14 near-black
-ACCENT = (255, 255, 255)  # white shapes
-GRID = (255, 255, 255, 180)
-RED_ACCENT = (219, 26, 26, 255)  # #DB1A1A — brand red
-# Corner radius for plate background: (22/100) * plate per Apple template
 PLATE_RADIUS = int(PLATE * 22 / 100)
 
+# Solid svart med polert glass-finish, hvit ikon
+GLASS_TOP    = (12, 12, 12)        # svart med bittelitt lys
+GLASS_MID    = (4, 4, 4)
+GLASS_BOT    = (0, 0, 0)           # pure black
+HIGHLIGHT    = (255, 255, 255, 50)
+RED_TINT     = (219, 26, 26, 35)
+SHAPE_COLOR  = (245, 245, 248)     # hvit ikon
 
-def _s(cx: float, cy: float, x: float, y: float, scale: float) -> tuple[float, float]:
-    return cx + (x - cx) * scale, cy + (y - cy) * scale
 
-
-def draw_plate(*, graphic_scale: float = 0.82) -> Image.Image:
-    """Draw icon art on the 832×832 plate (opaque), not full canvas."""
+def draw_glass_plate() -> Image.Image:
+    """Solid mørk bakgrunn med polert glass-finish (refleksjoner, ikke transparens)."""
     img = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
 
-    # Purple gradient clipped to plate squircle
+    # Base gradient (top-lighter til bottom-mørkere)
     grad = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
     gdraw = ImageDraw.Draw(grad)
     for y in range(PLATE):
         t = y / (PLATE - 1)
-        r = int(BG_TOP[0] * (1 - t) + BG_BOT[0] * t)
-        g = int(BG_TOP[1] * (1 - t) + BG_BOT[1] * t)
-        b = int(BG_TOP[2] * (1 - t) + BG_BOT[2] * t)
+        if t < 0.5:
+            tt = t * 2
+            r = int(GLASS_TOP[0] * (1 - tt) + GLASS_MID[0] * tt)
+            g = int(GLASS_TOP[1] * (1 - tt) + GLASS_MID[1] * tt)
+            b = int(GLASS_TOP[2] * (1 - tt) + GLASS_MID[2] * tt)
+        else:
+            tt = (t - 0.5) * 2
+            r = int(GLASS_MID[0] * (1 - tt) + GLASS_BOT[0] * tt)
+            g = int(GLASS_MID[1] * (1 - tt) + GLASS_BOT[1] * tt)
+            b = int(GLASS_MID[2] * (1 - tt) + GLASS_BOT[2] * tt)
         gdraw.line([(0, y), (PLATE, y)], fill=(r, g, b, 255))
+
     plate_mask = Image.new("L", (PLATE, PLATE), 0)
     ImageDraw.Draw(plate_mask).rounded_rectangle(
         (0, 0, PLATE - 1, PLATE - 1), radius=PLATE_RADIUS, fill=255
     )
     img.paste(grad, (0, 0), plate_mask)
-    draw = ImageDraw.Draw(img)
 
-    cx, cy = PLATE / 2, PLATE / 2
-    s = graphic_scale
+    # Subtil topp-highlight — BLENDES OVER med alpha_composite (paste-with-mask
+    # overskriver alpha, hvilket gjør plata transparent)
+    topshine = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
+    td = ImageDraw.Draw(topshine)
+    td.ellipse(
+        (int(-PLATE * 0.10), int(-PLATE * 0.40),
+         int(PLATE * 1.10), int(PLATE * 0.25)),
+        fill=(255, 255, 255, 22)
+    )
+    topshine = topshine.filter(ImageFilter.GaussianBlur(radius=30))
+    # Klipp topshine til squircle
+    topshine_clipped = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
+    topshine_clipped.paste(topshine, (0, 0), plate_mask)
+    img = Image.alpha_composite(img, topshine_clipped)
 
-    def pt(x: float, y: float) -> tuple[float, float]:
-        return _s(cx, cy, x, y, s)
+    # Subtil rim-light øverst
+    rim = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
+    rmd = ImageDraw.Draw(rim)
+    rmd.rounded_rectangle(
+        (0, 0, PLATE - 1, PLATE - 1),
+        radius=PLATE_RADIUS,
+        outline=(255, 255, 255, 30),
+        width=2
+    )
+    img = Image.alpha_composite(img, rim)
 
-    bx0, by0 = pt(cx - 290, cy - 120)
-    bx1, by1 = pt(cx - 70, cy + 80)
-    draw.rounded_rectangle((bx0, by0, bx1, by1), radius=int(48 * s), fill=ACCENT)
-    draw.polygon(
-        [pt(cx - 235, cy + 72), pt(cx - 260, cy + 135), pt(cx - 175, cy + 55)],
-        fill=ACCENT,
-    )
-    for i, base_y in enumerate([cy - 68, cy - 18, cy + 32]):
-        ly = pt(cx - 290, base_y)[1]
-        w = (140 - i * 18) * s
-        lx = pt(cx - 246, base_y)[0]
-        draw.rounded_rectangle(
-            (lx, ly, lx + w, ly + 22 * s),
-            radius=int(11 * s),
-            fill=(100, 100, 110),  # gray lines on document
-        )
-
-    draw.polygon(
-        [pt(cx - 35, cy - 28), pt(cx + 60, cy), pt(cx - 35, cy + 28), pt(cx, cy)],
-        fill=RED_ACCENT,
-    )
-
-    tx0, ty0 = pt(cx + 55, cy - 130)
-    tx1, ty1 = pt(cx + 285, cy + 130)
-    draw.rounded_rectangle(
-        (tx0, ty0, tx1, ty1),
-        radius=int(36 * s),
-        fill=(255, 255, 255, 38),
-        outline=ACCENT,
-        width=max(2, int(6 * s)),
-    )
-    row_h = 44 * s
-    pad = 28 * s
-    for row in range(4):
-        y = ty0 + 36 * s + row * row_h
-        draw.line([(tx0 + pad, y), (tx1 - pad, y)], fill=GRID, width=max(2, int(4 * s)))
-        if row < 3:
-            draw.line(
-                [(tx0 + pad, y + row_h), (tx1 - pad, y + row_h)],
-                fill=(255, 255, 255, 90),
-                width=max(1, int(2 * s)),
-            )
-    col_x = tx0 + (tx1 - tx0) * 0.38
-    draw.line(
-        [(col_x, ty0 + 28 * s), (col_x, ty1 - 28 * s)],
-        fill=(255, 255, 255, 120),
-        width=max(2, int(4 * s)),
-    )
-    draw.rounded_rectangle(
-        (tx0 + 36 * s, ty0 + 44 * s, col_x - 16 * s, ty0 + 44 * s + 32 * s),
-        radius=int(8 * s),
-        fill=(255, 255, 255, 70),
-    )
     return img
 
 
+def overlay_shape(plate: Image.Image) -> Image.Image:
+    """Legg SVG-shapen som mørkt forgrunns-ikon, sentrert."""
+    if not SHAPE.exists():
+        print(f"⚠ Mangler {SHAPE}.")
+        return plate
+
+    shape_src = Image.open(SHAPE).convert("RGBA")
+    sw, sh = shape_src.size
+
+    # qlmanage gjengir SVG med HVIT bakgrunn — bruk DARKNESS som mask
+    # (svarte piksler = shape, hvite piksler = bakgrunn → transparent)
+    gray = shape_src.convert("L")  # 0=svart, 255=hvit
+    # Inverter så svarte piksler får full opacity
+    mask = Image.eval(gray, lambda x: 255 - x)
+
+    # Fyll med SHAPE_COLOR der mask sier "shape"
+    colored = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
+    fill = Image.new("RGBA", (sw, sh), SHAPE_COLOR + (255,))
+    colored = Image.composite(fill, colored, mask)
+
+    # Skaler ned så shapen er ~62% av plata
+    target = int(PLATE * 0.62)
+    colored = colored.resize((target, target), Image.Resampling.LANCZOS)
+
+    # Subtil skygge under ikonet
+    shadow = Image.new("RGBA", (PLATE, PLATE), (0, 0, 0, 0))
+    sh_alpha = colored.split()[-1]
+    shadow_layer = Image.new("RGBA", colored.size, (0, 0, 0, 60))
+    shadow_layer.putalpha(sh_alpha)
+    offset_x = (PLATE - target) // 2
+    offset_y = (PLATE - target) // 2 + 8
+    shadow.paste(shadow_layer, (offset_x, offset_y), shadow_layer)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=10))
+
+    out = plate.copy()
+    out = Image.alpha_composite(out, shadow)
+    out.paste(colored, ((PLATE - target) // 2, (PLATE - target) // 2), colored)
+    return out
+
+
 def draw_icon() -> Image.Image:
-    """1024×1024 with transparent margin — matches other Dock icons."""
     canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    plate = draw_plate()
+    plate = draw_glass_plate()
+    plate = overlay_shape(plate)
     canvas.paste(plate, (INSET, INSET), plate)
     return canvas
 
@@ -160,7 +169,7 @@ def main() -> int:
     master.save(MASTER, "PNG")
     write_iconset(master)
     build_icns()
-    print(f"✓ {MASTER.name} (plate {PLATE}px + {INSET}px margin)")
+    print(f"✓ {MASTER.name} (glass + SVG-shape)")
     print(f"✓ {ICNS.name}")
     return 0
 
