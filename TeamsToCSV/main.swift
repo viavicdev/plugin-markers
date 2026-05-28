@@ -11,21 +11,51 @@ import CryptoKit
 
 // ─── COLORS (soft canvas + svevende kort med skygge) ─────────────────────────
 extension Color {
-    static let canvas      = Color(red: 0.13, green: 0.13, blue: 0.16)    // #21212A dark glass base
-    static let card        = Color.white                                   // #FFFFFF
-    static let cardBehind  = Color(red: 0.84, green: 0.84, blue: 0.88)    // #D6D6E0
-    static let ink         = Color(red: 0.04, green: 0.04, blue: 0.04)    // #0A0A0A
-    static let inkSoft     = Color(red: 0.36, green: 0.36, blue: 0.39)    // #5C5C63
-    static let inkFaded    = Color(red: 0.60, green: 0.60, blue: 0.63)    // #999AA0
-    static let line        = Color(red: 0.89, green: 0.89, blue: 0.92)    // #E2E2EA
-    static let surfaceMute = Color(red: 0.96, green: 0.96, blue: 0.97)    // #F5F5F7
-    static let brandAccent = Color(red: 0.859, green: 0.102, blue: 0.102) // #DB1A1A
-    static let brandAccentDim = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.10)
+    // GLM-5 cool whites
+    static let bgPrimary   = Color(red: 0.973, green: 0.976, blue: 0.988) // #F8F9FC
+    static let bgSecondary = Color(red: 0.933, green: 0.945, blue: 0.965) // #EEF1F6
+    static let canvas      = Color(red: 0.973, green: 0.976, blue: 0.988) // alias = bgPrimary
 
-    // Tekstfarger som ligger DIREKTE på mørk canvas
-    static let inkOnDark      = Color.white
-    static let inkOnDarkSoft  = Color(red: 0.70, green: 0.70, blue: 0.75)  // #B3B3BF
-    static let inkOnDarkFaded = Color(red: 0.50, green: 0.50, blue: 0.56)  // #80808F
+    // Glass surfaces
+    static let glassBg     = Color.white.opacity(0.72)
+    static let glassBgEl   = Color.white.opacity(0.88)
+    static let glassBgSub  = Color.white.opacity(0.65)
+    static let glassBorder = Color.white.opacity(0.60)
+    static let glassBorderSub = Color.white.opacity(0.40)
+
+    // Text
+    static let ink         = Color(red: 0.102, green: 0.114, blue: 0.137) // #1A1D23
+    static let inkSoft     = Color(red: 0.420, green: 0.447, blue: 0.502) // #6B7280
+    static let inkFaded    = Color(red: 0.612, green: 0.639, blue: 0.686) // #9CA3AF
+    static let inkMuted    = Color(red: 0.769, green: 0.788, blue: 0.831) // #C4C9D4
+    static let divider     = Color(red: 0.580, green: 0.639, blue: 0.722).opacity(0.20)
+
+    // Card
+    static let card        = Color.white
+    static let cardBehind  = Color(red: 0.93, green: 0.93, blue: 0.94)
+    static let line        = Color(red: 0.580, green: 0.639, blue: 0.722).opacity(0.20)
+    static let surfaceMute = Color(red: 0.97, green: 0.97, blue: 0.97)
+
+    // Brand (red gradient pair)
+    static let brandAccent      = Color(red: 0.859, green: 0.102, blue: 0.102) // #DB1A1A
+    static let brandAccentHover = Color(red: 0.725, green: 0.082, blue: 0.082) // #B91515
+    static let brandAccentDim   = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.08)
+    static let brandAccentMed   = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.14)
+    static let brandAccentGlow  = Color(red: 0.859, green: 0.102, blue: 0.102).opacity(0.15)
+
+    // Indigo (subtle bg accent only)
+    static let indigoBgTint = Color(red: 0.388, green: 0.400, blue: 0.945) // #6366F1
+
+    // Warn / Truncated
+    static let warnBorder = Color(red: 0.961, green: 0.620, blue: 0.043)   // #F59E0B (Note border)
+    static let warnBg     = Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.08)
+    static let dangerRed  = Color(red: 0.863, green: 0.149, blue: 0.149)   // #DC2626 (truncated)
+    static let dangerBg   = Color(red: 0.937, green: 0.267, blue: 0.267).opacity(0.10)
+
+    // Aliases for legacy callers
+    static let inkOnDark      = Color(red: 0.102, green: 0.114, blue: 0.137)
+    static let inkOnDarkSoft  = Color(red: 0.420, green: 0.447, blue: 0.502)
+    static let inkOnDarkFaded = Color(red: 0.612, green: 0.639, blue: 0.686)
 }
 
 // ─── OCR ENGINE OPTIONS ──────────────────────────────────────────────────────
@@ -202,39 +232,29 @@ struct AnimationView: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
-// ─── FROSTED DARK GLASS BAKGRUNN ─────────────────────────────────────────────
+// ─── GLM-5 BACKGROUND ────────────────────────────────────────────────────────
+// Linear cool-white gradient + subtle red top-left + indigo bottom-right.
 struct NoiseBackground: View {
-    let baseColor: Color
-    private let noiseImage: NSImage = makeNoise(size: CGSize(width: 240, height: 240))
+    let baseColor: Color  // ignorert
 
     var body: some View {
         ZStack {
-            // Base dark
-            baseColor
-
-            // Soft radial highlight (som lys treffer glass) — øverst venstre
-            RadialGradient(
-                colors: [Color.white.opacity(0.10), Color.clear],
-                center: UnitPoint(x: 0.2, y: 0.1),
-                startRadius: 50,
-                endRadius: 500
+            LinearGradient(
+                colors: [Color.bgPrimary, Color.bgSecondary],
+                startPoint: .top, endPoint: .bottom
             )
-
-            // Sekundær subtle accent-glød — nederst høyre
             RadialGradient(
-                colors: [Color.brandAccent.opacity(0.06), Color.clear],
-                center: UnitPoint(x: 0.95, y: 0.95),
-                startRadius: 40,
-                endRadius: 350
+                colors: [Color.brandAccent.opacity(0.04), Color.clear],
+                center: UnitPoint(x: 0.20, y: 0.0),
+                startRadius: 0, endRadius: 520
             )
-
-            // Veldig subtil grain (frosted-feel uten å bli "kornet")
-            Image(nsImage: noiseImage)
-                .resizable(resizingMode: .tile)
-                .opacity(0.08)
-                .blendMode(.softLight)
-                .allowsHitTesting(false)
+            RadialGradient(
+                colors: [Color.indigoBgTint.opacity(0.03), Color.clear],
+                center: UnitPoint(x: 0.80, y: 1.0),
+                startRadius: 0, endRadius: 480
+            )
         }
+        .ignoresSafeArea()
     }
 }
 
@@ -315,15 +335,31 @@ struct ContentView: View {
     @AppStorage("exportXLSX")       private var exportXLSX: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            if updater.availableVersion != nil { updateBanner }
-            dropZone
-                .padding(20)
-            Divider()
-            resultsList
+        ZStack(alignment: .top) {
+            NoiseBackground(baseColor: Color.canvas)
+
+            VStack(spacing: 0) {
+                header
+                if updater.availableVersion != nil { updateBanner }
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        dropZone
+                        resultsList
+                        if !processedFiles.isEmpty {
+                            clearAllButton
+                                .padding(.top, 8)
+                        }
+                    }
+                    .frame(maxWidth: 1240)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                    .padding(.bottom, 48)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+
         }
-        .background(NoiseBackground(baseColor: Color.canvas).ignoresSafeArea())
         .sheet(isPresented: $showInfo) { InfoSheet(isPresented: $showInfo) }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
@@ -338,103 +374,89 @@ struct ContentView: View {
         }
     }
 
-    // Header — hvit frosted-glass på toppen
-    private var header: some View {
-        VStack(spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                // Brand mark + tittel
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Circle().fill(Color.brandAccent).frame(width: 6, height: 6)
-                        Text("RENDER")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .tracking(2.0)
-                            .foregroundColor(.inkSoft)
-                    }
-                    HStack(spacing: 8) {
-                        Text("Teams → CSV")
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(.ink)
-                        BetaBadge(onLight: true)
-                    }
-                }
-                Spacer()
-                if processedFiles.count >= 2 {
-                    Button {
-                        mergeAllToCSV()
-                    } label: {
-                        Label("Slå sammen", systemImage: "rectangle.stack.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.brandAccent))
-                    .help("Slå sammen alle filer til én CSV, sortert på dato + timecode")
-                }
-                if !processedFiles.isEmpty {
-                    Button {
-                        processedFiles.removeAll()
-                        errorMessage = nil
-                    } label: {
-                        Label("Tøm", systemImage: "trash")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.inkSoft)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.black.opacity(0.05)))
-                }
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14))
-                }
-                .buttonStyle(.plain)
+    private var clearAllButton: some View {
+        Button {
+            processedFiles.removeAll()
+            errorMessage = nil
+        } label: {
+            Text("Tøm alle")
+                .font(.system(size: 12))
                 .foregroundColor(.inkSoft)
-                .help("Innstillinger")
-
-                Button {
-                    showInfo = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 14))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.inkSoft)
-                .help("Om / personvern")
-            }
-
-            // Subtil motor-indikator
-            HStack(spacing: 8) {
-                Image(systemName: "doc.text.viewfinder")
-                    .font(.system(size: 10))
-                Text(engineLabel)
-                    .font(.system(size: 11))
-                if engine == .tesseract && tesseractPath == nil && tesseractFallback {
-                    Text("· faller tilbake til Apple Vision")
-                        .font(.system(size: 11))
-                        .foregroundColor(.brandAccent)
-                }
-                Spacer()
-            }
-            .foregroundColor(.inkFaded)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.glassBgSub)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8).fill(.ultraThinMaterial)
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.black.opacity(0.10), lineWidth: 1)
+                )
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            ZStack {
-                Color.white
-                Rectangle()
-                    .fill(Color.black.opacity(0.05))
-                    .frame(height: 1)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
+        .buttonStyle(.plain)
+    }
+
+    // Header — GLM-5 style: logo-square + bold title + Settings text-button + About icon
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(spacing: 0) {
+                Text("Teams")
+                    .foregroundColor(.ink)
+                Text("To")
+                    .foregroundColor(.brandAccent)
+                Text("Markers")
+                    .foregroundColor(.ink)
             }
+            .font(.system(size: 18, weight: .semibold))
+            .tracking(-0.4)
+
+            BetaPill()
+                .padding(.leading, 4)
+
+            Text(appVersionLabel)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.inkFaded)
+
+            Spacer()
+
+            if processedFiles.count >= 2 {
+                Button {
+                    mergeAllToCSV()
+                } label: {
+                    Label("Slå sammen", systemImage: "rectangle.stack.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.brandAccent)
+                        )
+                        .shadow(color: Color.brandAccentGlow, radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+                .help("Slå sammen alle filer til én CSV, sortert på dato + timecode")
+            }
+
+            GhostHeaderButton(label: "Innstillinger", systemIcon: "gearshape") {
+                showSettings = true
+            }
+
+            IconHeaderButton(systemIcon: "info.circle", help: "Om / personvern") {
+                showInfo = true
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .background(
+            LinearGradient(
+                colors: [Color.bgPrimary.opacity(0.95), Color.bgPrimary.opacity(0)],
+                startPoint: .top, endPoint: .bottom
+            )
         )
-        .shadow(color: .black.opacity(0.10), radius: 10, y: 2)
     }
 
     // Update-banner som vises hvis ny versjon er tilgjengelig
@@ -475,44 +497,88 @@ struct ContentView: View {
         }
     }
 
-    // Drop zone
+    // Drop zone — GLM-5 stor versjon når tom, compact når filer finnes
     private var dropZone: some View {
-        ZStack {
-            // Semi-transparent fyll så glass-canvas skinner gjennom
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isDragging
-                      ? Color.brandAccent.opacity(0.15)
-                      : Color.white.opacity(0.06))
-                .shadow(color: .black.opacity(0.20), radius: 12, y: 4)
-
-            // Tydeligere kant
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(
-                    isDragging ? Color.brandAccent : Color.white.opacity(0.25),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [7, 5])
+        let compact = !processedFiles.isEmpty
+        return ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(isDragging ? Color.glassBgEl : Color.glassBgSub)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(
+                            isDragging ? Color.brandAccent : Color.line,
+                            style: StrokeStyle(lineWidth: 2, dash: [7, 5])
+                        )
                 )
 
-            VStack(spacing: 8) {
+            // Hover/active subtle accent overlay
+            if isDragging {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.clear, Color.brandAccentDim],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(spacing: 0) {
                 if isProcessing {
-                    AnimationView(htmlName: "timeline-bw")
-                        .frame(width: 140, height: 80)
-                    Text("Kjører OCR...")
-                        .font(.system(size: 13))
-                        .foregroundColor(.inkOnDarkSoft)
+                    VStack(spacing: 12) {
+                        AnimationView(htmlName: "timeline-bw")
+                            .frame(width: 200, height: 110)
+                        Text("Kjører OCR…")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.inkSoft)
+                    }
+                    .padding(.vertical, compact ? 18 : 36)
+                } else if compact {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 13))
+                            .foregroundColor(isDragging ? .brandAccent : .inkFaded)
+                        Text(isDragging ? "Slipp her" : "Slipp flere screenshots her")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(isDragging ? .brandAccent : .inkSoft)
+                    }
+                    .padding(.vertical, 18)
                 } else {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 36))
-                        .foregroundColor(isDragging ? .brandAccent : .inkOnDarkSoft)
-                    Text(isDragging ? "Slipp her" : "Dra PNG/JPG hit")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.inkOnDark)
-                    Text("eller klikk for å velge filer")
-                        .font(.system(size: 11))
-                        .foregroundColor(.inkOnDarkFaded)
+                    VStack(spacing: 0) {
+                        Circle()
+                            .fill(Color.glassBgEl)
+                            .frame(width: 72, height: 72)
+                            .overlay(
+                                Circle().strokeBorder(Color.line, lineWidth: 1)
+                            )
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.brandAccent)
+                            )
+                            .padding(.bottom, 20)
+
+                        Text(isDragging ? "Slipp filene her" : "Slipp Teams-screenshots her")
+                            .font(.system(size: 20, weight: .semibold))
+                            .tracking(-0.4)
+                            .foregroundColor(.ink)
+                            .padding(.bottom, 8)
+
+                        Text("eller klikk for å velge filer")
+                            .font(.system(size: 14))
+                            .foregroundColor(.inkSoft)
+                            .padding(.bottom, 16)
+
+                        HStack(spacing: 8) {
+                            FormatTag(text: "PNG")
+                            FormatTag(text: "JPG")
+                            FormatTag(text: "JPEG")
+                        }
+                    }
+                    .padding(.vertical, 56)
                 }
             }
         }
-        .frame(minHeight: 120, maxHeight: 140)
+        .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { selectFiles() }
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
@@ -521,50 +587,42 @@ struct ContentView: View {
         }
     }
 
-    // Results list
+    // Results list (uten egen scrollview — er allerede inni en)
     @ViewBuilder
     private var resultsList: some View {
-        if processedFiles.isEmpty && errorMessage == nil {
-            VStack(spacing: 8) {
+        if let err = errorMessage {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.brandAccent)
+                Text(err).font(.system(size: 12))
+                    .foregroundColor(.ink)
                 Spacer()
-                Image(systemName: "doc.text")
-                    .font(.system(size: 24))
-                    .foregroundColor(.inkOnDarkFaded)
-                Text("Ingen filer behandlet ennå")
-                    .font(.system(size: 12))
-                    .foregroundColor(.inkOnDarkSoft)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(20)
-        } else {
-            ScrollView {
-                VStack(spacing: 8) {
-                    if let err = errorMessage {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.brandAccent)
-                            Text(err).font(.system(size: 12))
-                            Spacer()
-                            Button("✕") { errorMessage = nil }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.inkSoft)
-                        }
-                        .padding(10)
-                        .background(Color.brandAccentDim)
-                        .cornerRadius(6)
-                    }
-                    ForEach($processedFiles) { $file in
-                        FileRow(
-                            file: $file,
-                            onDownload: { saveCSV(file) },
-                            onShowInFinder: { NSWorkspace.shared.activateFileViewerSelecting([file.csvURL]) },
-                            onRemove: { processedFiles.removeAll { $0.id == file.id } }
-                        )
-                    }
+                Button {
+                    errorMessage = nil
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .buttonStyle(.plain)
+                .foregroundColor(.inkSoft)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.brandAccentDim)
+            )
+        }
+
+        if processedFiles.isEmpty && errorMessage == nil {
+            EmptyView()
+        } else {
+            ForEach($processedFiles) { $file in
+                FileRow(
+                    file: $file,
+                    onDownload: { saveCSV(file) },
+                    onShowInFinder: { NSWorkspace.shared.activateFileViewerSelecting([file.csvURL]) },
+                    onRemove: { processedFiles.removeAll { $0.id == file.id } }
+                )
             }
         }
     }
@@ -679,8 +737,8 @@ struct ContentView: View {
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.directoryURL = processedFiles.first?.pngURL.deletingLastPathComponent()
         if panel.runModal() == .OK, let dest = panel.url {
-            let csv = "date,timecode,comment,note\n" + allRows.map {
-                "\(csvEscape($0.date)),\($0.tc),\(csvEscape($0.comment)),\(csvEscape($0.note))"
+            let csv = "timecode,comment,note\n" + allRows.map {
+                "\($0.tc),\(csvEscape($0.comment)),\(csvEscape($0.note))"
             }.joined(separator: "\n") + "\n"
             do {
                 try csv.write(to: dest, atomically: true, encoding: .utf8)
@@ -697,8 +755,8 @@ struct ContentView: View {
         panel.directoryURL = file.pngURL.deletingLastPathComponent()
         if panel.runModal() == .OK, let dest = panel.url {
             // Regenerer CSV fra nåværende (potentielt redigerte) rader (4 kolonner: date,tc,comment,note)
-            let csv = "date,timecode,comment,note\n" + file.rows.map {
-                "\(csvEscape($0.date)),\($0.tc),\(csvEscape($0.comment)),\(csvEscape($0.note))"
+            let csv = "timecode,comment,note\n" + file.rows.map {
+                "\($0.tc),\(csvEscape($0.comment)),\(csvEscape($0.note))"
             }.joined(separator: "\n") + "\n"
             do {
                 try csv.write(to: dest, atomically: true, encoding: .utf8)
@@ -711,8 +769,453 @@ struct ContentView: View {
     }
 }
 
-// ─── BETA BADGE ──────────────────────────────────────────────────────────────
-let appVersionLabel = "v1.20"
+// ─── BRAND COMPONENTS ────────────────────────────────────────────────────────
+let appVersionLabel = "v1.24"
+
+struct ClapperboardLogo: View {
+    var size: CGFloat = 40
+    var iconScale: CGFloat = 0.55
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.brandAccent, Color.brandAccentHover],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: Color.brandAccentGlow, radius: 8, y: 4)
+
+            // Spreadsheet/table SVG som hvit stroke
+            Canvas { ctx, csize in
+                let s = min(csize.width, csize.height)
+                let stroke = max(1.2, s * 0.085)
+                let inset = s * 0.10
+                let rect = CGRect(x: inset, y: inset, width: s - 2*inset, height: s - 2*inset)
+
+                let path = Path { p in
+                    // Outer rounded rect
+                    p.addRoundedRect(in: rect, cornerSize: CGSize(width: s*0.10, height: s*0.10))
+                    // Two vertical lines (3 columns)
+                    let col1 = rect.minX + rect.width * 0.33
+                    let col2 = rect.minX + rect.width * 0.67
+                    p.move(to: CGPoint(x: col1, y: rect.minY))
+                    p.addLine(to: CGPoint(x: col1, y: rect.maxY))
+                    p.move(to: CGPoint(x: col2, y: rect.minY))
+                    p.addLine(to: CGPoint(x: col2, y: rect.maxY))
+                    // Two horizontal lines (3 rows)
+                    let row1 = rect.minY + rect.height * 0.33
+                    let row2 = rect.minY + rect.height * 0.67
+                    p.move(to: CGPoint(x: rect.minX, y: row1))
+                    p.addLine(to: CGPoint(x: rect.maxX, y: row1))
+                    p.move(to: CGPoint(x: rect.minX, y: row2))
+                    p.addLine(to: CGPoint(x: rect.maxX, y: row2))
+                }
+                ctx.stroke(path, with: .color(.white), style: StrokeStyle(lineWidth: stroke, lineCap: .round, lineJoin: .round))
+            }
+            .frame(width: size * iconScale, height: size * iconScale)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+struct BetaPill: View {
+    var body: some View {
+        Text("BETA")
+            .font(.system(size: 9, weight: .semibold))
+            .tracking(0.8)
+            .foregroundColor(.brandAccent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.brandAccentDim)
+            )
+    }
+}
+
+struct GhostHeaderButton: View {
+    let label: String
+    let systemIcon: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemIcon)
+                    .font(.system(size: 13))
+                Text(label)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundColor(hover ? .ink : .inkSoft)
+            .padding(.horizontal, 14)
+            .frame(height: 36)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(hover ? Color.glassBgEl : Color.glassBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.glassBorderSub, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.14), value: hover)
+    }
+}
+
+struct IconHeaderButton: View {
+    let systemIcon: String
+    let help: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemIcon)
+                .font(.system(size: 16))
+                .foregroundColor(hover ? .ink : .inkSoft)
+                .frame(width: 40, height: 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(hover ? Color.glassBgEl : Color.glassBg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.glassBorderSub, lineWidth: 1)
+                )
+                .shadow(color: hover ? Color.black.opacity(0.06) : Color.clear, radius: 6, y: 2)
+                .offset(y: hover ? -1 : 0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.14), value: hover)
+        .help(help)
+    }
+}
+
+// ─── FORMAT TAGS ─────────────────────────────────────────────────────────────
+struct FormatTag: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.system(size: 10, weight: .medium, design: .monospaced))
+            .tracking(0.5)
+            .foregroundColor(.inkFaded)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.glassBgEl)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(Color.line, lineWidth: 1)
+            )
+    }
+}
+
+// ─── FILM-STRIP PROCESSING OVERLAY ───────────────────────────────────────────
+struct ProcessingOverlay: View {
+    @State private var elapsed: Double = 0
+    @State private var statusIdx: Int = 0
+    @State private var scanOffset: CGFloat = 0
+    private let statuses = [
+        "Initialiserer OCR-motor…",
+        "Analyserer bildestruktur…",
+        "Oppdager meldingsgrenser…",
+        "Ekstraherer tidsstempler…",
+        "Parser meldingsinnhold…",
+        "Validerer timecodes…",
+        "Bygger output-rader…",
+        "Avslutter…"
+    ]
+    private let timer = Timer.publish(every: 0.033, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            Color.bgPrimary.opacity(0.92)
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                // Film strip
+                ZStack {
+                    // Body (dark gradient)
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.10, green: 0.10, blue: 0.10),
+                            Color(red: 0.165, green: 0.165, blue: 0.165),
+                            Color(red: 0.10, green: 0.10, blue: 0.10)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                    HStack(spacing: 0) {
+                        // Left perforation strip
+                        FilmPerforations()
+                            .frame(width: 16)
+                        // 8 frames in middle
+                        HStack(spacing: 3) {
+                            ForEach(0..<8, id: \.self) { i in
+                                FilmFrame(delay: Double(i) * 0.1)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 4)
+                        // Right perforation strip
+                        FilmPerforations()
+                            .frame(width: 16)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                    // Glow center
+                    RadialGradient(
+                        colors: [Color.brandAccent.opacity(0.20), Color.clear],
+                        center: .center, startRadius: 0, endRadius: 80
+                    )
+                    .frame(width: 200, height: 60)
+                }
+                .frame(width: 320, height: 80)
+                .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
+
+                // Counter (HH:MM:SS film frames)
+                Text(frameTimecode())
+                    .font(.system(size: 30, weight: .semibold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.brandAccent)
+
+                Text(statuses[min(statusIdx, statuses.count - 1)])
+                    .font(.system(size: 13))
+                    .foregroundColor(.inkSoft)
+            }
+        }
+        .onReceive(timer) { _ in
+            elapsed += 0.033
+            let frames = Int(elapsed / 0.033)
+            statusIdx = min((frames / 15) % statuses.count, statuses.count - 1)
+        }
+    }
+
+    private func frameTimecode() -> String {
+        let total = Int(elapsed * 30) // 30fps
+        let frames = total % 30
+        let sec = (total / 30) % 60
+        let min = (total / (30 * 60)) % 60
+        return String(format: "%02d:%02d:%02d", min, sec, frames)
+    }
+}
+
+struct FilmFrame: View {
+    let delay: Double
+    @State private var scanX: CGFloat = -1.2
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.23, green: 0.23, blue: 0.23),
+                        Color(red: 0.165, green: 0.165, blue: 0.165)
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.10), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(width: geo.size.width)
+                .offset(x: scanX * geo.size.width)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 2))
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                        scanX = 1.2
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct FilmPerforations: View {
+    var body: some View {
+        GeometryReader { geo in
+            Canvas { ctx, size in
+                let cellH: CGFloat = 8
+                let holeH: CGFloat = 6
+                let holeW: CGFloat = 8
+                var y: CGFloat = 0
+                while y < size.height {
+                    let rect = CGRect(x: (size.width - holeW) / 2, y: y + (cellH - holeH) / 2, width: holeW, height: holeH)
+                    ctx.fill(
+                        Path(roundedRect: rect, cornerSize: CGSize(width: 1, height: 1)),
+                        with: .color(.black.opacity(0.55))
+                    )
+                    y += cellH * 2
+                }
+            }
+        }
+        .background(Color(red: 0.04, green: 0.04, blue: 0.04))
+    }
+}
+
+// ─── CINEMATIC LOADER ────────────────────────────────────────────────────────
+// Sirkulær progress + 4 registreringsmerker + film-strip rull, alt i SwiftUI.
+struct CinematicLoader: View {
+    @State private var progress: CGFloat = 0
+    @State private var counter: Int = 8
+    @State private var filmOffset: CGFloat = 0
+    @State private var shutter: Bool = false
+
+    let totalSteps: Int = 8
+
+    var body: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                // Registreringsmerker (4 hjørner) — sterilt og presist
+                ForEach(0..<4, id: \.self) { i in
+                    RegMark()
+                        .frame(width: 12, height: 12)
+                        .offset(regOffset(i))
+                }
+
+                // Bakgrunn-ring (svak)
+                Circle()
+                    .strokeBorder(Color.black.opacity(0.07), lineWidth: 1.5)
+                    .frame(width: 110, height: 110)
+
+                // Progress-ring (rød)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        Color.brandAccent,
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 110, height: 110)
+                    .animation(.easeOut(duration: 0.28), value: progress)
+
+                // Shutter-flash linje (kort blits)
+                Rectangle()
+                    .fill(Color.brandAccent)
+                    .frame(width: 100, height: 1.5)
+                    .opacity(shutter ? 0.7 : 0)
+                    .animation(.easeOut(duration: 0.18), value: shutter)
+
+                // Stort nummer i midten
+                Text(pad2(counter))
+                    .font(.system(size: 38, weight: .semibold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.brandAccent)
+            }
+            .frame(width: 140, height: 140)
+
+            Text("ANALYSERER")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .tracking(3)
+                .foregroundColor(.inkFaded)
+
+            // Film-strip — to rader perforerings-hull som scroller
+            FilmStrip(offset: filmOffset)
+                .frame(width: 220, height: 28)
+        }
+        .padding(.vertical, 24)
+        .onAppear { tick() }
+    }
+
+    private func tick() {
+        guard counter > 0 else { return }
+        progress = CGFloat(totalSteps - counter + 1) / CGFloat(totalSteps)
+        shutter = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { shutter = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            counter -= 1
+            if counter > 0 { tick() }
+        }
+        withAnimation(.linear(duration: 0.38).repeatForever(autoreverses: false)) {
+            filmOffset = 22
+        }
+    }
+
+    private func pad2(_ n: Int) -> String { n < 10 ? "0\(n)" : "\(n)" }
+
+    private func regOffset(_ i: Int) -> CGSize {
+        let r: CGFloat = 70
+        switch i {
+        case 0: return CGSize(width: 0, height: -r)   // top
+        case 1: return CGSize(width: r, height: 0)    // right
+        case 2: return CGSize(width: 0, height: r)    // bottom
+        default: return CGSize(width: -r, height: 0)  // left
+        }
+    }
+}
+
+struct RegMark: View {
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color.black.opacity(0.18)).frame(width: 12, height: 1.5)
+            Rectangle().fill(Color.black.opacity(0.18)).frame(width: 1.5, height: 12)
+        }
+    }
+}
+
+struct FilmStrip: View {
+    let offset: CGFloat
+
+    var body: some View {
+        Canvas { ctx, size in
+            let holeW: CGFloat = 6, holeH: CGFloat = 8, holeRx: CGFloat = 1.5
+            let step: CGFloat = 22
+            let xOffset = -offset.truncatingRemainder(dividingBy: step)
+            var x: CGFloat = xOffset
+            while x < size.width + step {
+                // top hull
+                ctx.fill(
+                    Path(roundedRect: CGRect(x: x, y: 2, width: holeW, height: holeH),
+                         cornerSize: CGSize(width: holeRx, height: holeRx)),
+                    with: .color(.black.opacity(0.06))
+                )
+                // bottom hull
+                ctx.fill(
+                    Path(roundedRect: CGRect(x: x, y: size.height - 2 - holeH, width: holeW, height: holeH),
+                         cornerSize: CGSize(width: holeRx, height: holeRx)),
+                    with: .color(.black.opacity(0.06))
+                )
+                x += step
+            }
+        }
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.black.opacity(0.07)).frame(height: 1.5)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.black.opacity(0.07)).frame(height: 1.5)
+        }
+    }
+}
+
+struct HoverHighlightButtonStyle: ButtonStyle {
+    @State private var hover = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(hover ? Color.black.opacity(0.05) : Color.clear)
+            )
+            .onHover { hover = $0 }
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
 
 struct BetaBadge: View {
     var onLight: Bool = false
@@ -744,7 +1247,7 @@ struct BetaBadge: View {
     }
 }
 
-// ─── FILE ROW ────────────────────────────────────────────────────────────────
+// ─── FILE CARD (GLM-5 style) ─────────────────────────────────────────────────
 struct FileRow: View {
     @Binding var file: ProcessedFile
     let onDownload: () -> Void
@@ -752,124 +1255,281 @@ struct FileRow: View {
     let onRemove: () -> Void
     @State private var showAll: Bool = false
     @State private var isEditing: Bool = false
+    @State private var hoverCard: Bool = false
 
-    private let initialRows = 6
+    private let initialRows = 8
+
+    private var truncatedCount: Int {
+        file.rows.filter { $0.truncated }.count
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // ── Header row ──
-            HStack(spacing: 10) {
-                if let thumb = file.thumbnail {
-                    Image(nsImage: thumb)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 38, height: 38)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color.line, lineWidth: 1)
-                        )
-                        .help("Klikk filnavnet for Quick Look av kilde-PNG")
-                } else {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 14))
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Button {
-                        quickLook(file.pngURL)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(file.pngURL.lastPathComponent)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.ink)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Image(systemName: "eye")
-                                .font(.system(size: 9))
-                                .foregroundColor(.inkFaded)
+        VStack(alignment: .leading, spacing: 0) {
+            // ── Card header: thumbnail + filename + meta + actions ──
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 14) {
+                    // Thumbnail box (44×44)
+                    if let thumb = file.thumbnail {
+                        Image(nsImage: thumb)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Color.line, lineWidth: 1)
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.bgSecondary)
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Color.line, lineWidth: 1)
+                            )
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.inkFaded)
+                            )
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Button {
+                            quickLook(file.pngURL)
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(file.pngURL.lastPathComponent)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.ink)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Image(systemName: "eye")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.inkFaded)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help("Klikk for Quick Look av kilde-PNG")
+
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Text("\(file.markerCount)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.brandAccent)
+                                Text("markers")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.inkFaded)
+                            }
+                            if truncatedCount > 0 {
+                                Text("\(truncatedCount) kanskje kuttet")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.dangerRed)
+                            }
                         }
                     }
-                    .buttonStyle(.plain)
-                    .help("Klikk for Quick Look av kilde-PNG")
-                    HStack(spacing: 6) {
-                        Text("\(file.markerCount) markers")
-                            .font(.system(size: 11))
-                            .foregroundColor(.inkSoft)
-                        Text("·")
-                            .foregroundColor(.inkSoft)
-                        Text(file.csvURL.lastPathComponent)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.inkSoft)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
                 }
+
                 Spacer()
 
-                Button {
-                    isEditing.toggle()
-                } label: {
-                    Label(isEditing ? "Ferdig" : "Rediger",
-                          systemImage: isEditing ? "checkmark" : "pencil")
+                HStack(spacing: 8) {
+                    SecondaryPill(label: isEditing ? "Ferdig" : "Rediger", active: isEditing) {
+                        isEditing.toggle()
+                    }
+                    SquareIconBtn(systemIcon: "folder", help: "Vis i Finder", action: onShowInFinder)
+                    SquareIconBtn(systemIcon: "trash", help: "Fjern fra listen", danger: true, action: onRemove)
                 }
-                .controlSize(.small)
-
-                Button {
-                    onRemove()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.inkSoft)
-                .help("Fjern fra listen")
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Color.glassBgEl)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.divider).frame(height: 1)
             }
 
             // ── Table preview ──
             CSVTablePreview(rows: $file.rows, showAll: $showAll, limit: initialRows, isEditing: isEditing)
 
-            // ── Actions ──
-            HStack(spacing: 8) {
+            // ── Footer: Clear markers (ghost) + Download CSV (primary red) ──
+            HStack {
                 Button {
-                    onDownload()
+                    file.rows = []
                 } label: {
-                    Label("Last ned CSV", systemImage: "arrow.down.circle.fill")
+                    Text("Tøm rader")
+                        .font(.system(size: 12))
+                        .foregroundColor(.inkSoft)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-
-                Button {
-                    onShowInFinder()
-                } label: {
-                    Label("Vis i Finder", systemImage: "folder")
-                }
-                .controlSize(.small)
+                .buttonStyle(.plain)
 
                 Spacer()
 
-                if file.rows.count > initialRows {
-                    Button {
-                        showAll.toggle()
-                    } label: {
-                        Text(showAll ? "Vis færre" : "Vis alle (\(file.rows.count))")
-                            .font(.system(size: 11))
+                Button(action: onDownload) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Last ned CSV")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.brandAccent)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.brandAccent)
+                    )
+                    .shadow(color: Color.brandAccentGlow, radius: 6, y: 3)
                 }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Color.glassBgSub)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.divider).frame(height: 1)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.card)
-                .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
-        )
+        .background(Color.glassBg)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(isEditing ? Color.brandAccent.opacity(0.5) : Color.line.opacity(0.5), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color.glassBorder, lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(hoverCard ? 0.10 : 0.06), radius: hoverCard ? 18 : 10, y: hoverCard ? 8 : 3)
+        .offset(y: hoverCard ? -2 : 0)
+        .onHover { hoverCard = $0 }
+        .animation(.easeOut(duration: 0.22), value: hoverCard)
+    }
+}
+
+// ─── SECONDARY PILL + SQUARE ICON ────────────────────────────────────────────
+struct SecondaryPill: View {
+    let label: String
+    var active: Bool = false
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: active ? .semibold : .medium))
+                .foregroundColor(active ? .brandAccent : .ink)
+                .padding(.horizontal, 14)
+                .frame(height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(active ? Color.brandAccentDim : (hover ? Color.glassBgEl : Color.glassBg))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(active ? Color.brandAccent.opacity(0.5) : Color.line, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.14), value: hover)
+    }
+}
+
+struct SquareIconBtn: View {
+    let systemIcon: String
+    let help: String
+    var danger: Bool = false
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemIcon)
+                .font(.system(size: 14))
+                .foregroundColor(hover && danger ? .dangerRed : (hover ? .ink : .inkSoft))
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(hover ? (danger ? Color.dangerBg : Color.glassBgEl) : Color.glassBg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.line, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.14), value: hover)
+        .help(help)
+    }
+}
+
+// ─── BUTTONS (GLM) ───────────────────────────────────────────────────────────
+struct GhostButton: View {
+    let title: String
+    var active: Bool = false
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: active ? .semibold : .medium))
+                .foregroundColor(active ? .brandAccent : (hover ? .ink : .inkSoft))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(active ? Color.brandAccentDim : (hover ? Color.black.opacity(0.05) : Color.clear))
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
+    }
+}
+
+struct PrimaryButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(hover ? Color(red: 0.77, green: 0.08, blue: 0.08) : Color.brandAccent)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
+    }
+}
+
+struct IconGhostButton: View {
+    let systemName: String
+    let help: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(hover ? .brandAccent : .inkFaded)
+                .frame(width: 26, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(hover ? Color.brandAccentDim : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
+        .help(help)
     }
 }
 
@@ -884,193 +1544,206 @@ struct CSVTablePreview: View {
         showAll ? rows.count : min(limit, rows.count)
     }
 
-    // Lys grå palett
-    private let bgColor       = Color(red: 0.96, green: 0.96, blue: 0.97)  // #F5F5F7 lys
-    private let headerBg      = Color(red: 0.91, green: 0.91, blue: 0.93)  // #E8E8EE litt mørkere
-    private let stripeBg      = Color(red: 0.94, green: 0.94, blue: 0.96)  // #F0F0F4
-    private let lineColor     = Color(red: 0.82, green: 0.82, blue: 0.85)  // #D2D2D9
-    private let textColor     = Color(red: 0.10, green: 0.10, blue: 0.12)  // #1A1A1F
-    private let textSoftColor = Color(red: 0.40, green: 0.40, blue: 0.43)  // #66666E
+    private let dateW: CGFloat = 60
+    private let tcW:   CGFloat = 78
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header row (mono uppercase, light bg)
             HStack(spacing: 0) {
-                Text("DATO")
-                    .frame(width: 55, alignment: .leading)
-                Rectangle().fill(lineColor).frame(width: 1)
-                Text("TIMECODE")
-                    .frame(width: 130, alignment: .leading)
-                    .padding(.leading, 10)
-                Rectangle().fill(lineColor).frame(width: 1)
-                Text("KOMMENTAR")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 10)
-                if isEditing {
-                    Text("").frame(width: 28)
-                }
+                tableHead("DATE", width: dateW)
+                tableHead("TIMECODE", width: tcW)
+                tableHead("MESSAGE", flex: true)
+                if isEditing { Color.clear.frame(width: 48) }
             }
-            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-            .tracking(1.0)
-            .foregroundColor(textSoftColor)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(headerBg)
-            .overlay(
-                Rectangle().fill(lineColor).frame(height: 1)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-            )
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Color.glassBgSub)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.divider).frame(height: 1)
+            }
 
-            // Rader
+            // Rows
             ForEach(0..<visibleCount, id: \.self) { idx in
-                HStack(alignment: .top, spacing: 0) {
-                    if isEditing {
-                        TextField("DD/M", text: $rows[idx].date)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(textSoftColor)
-                            .frame(width: 55, alignment: .leading)
-                        Rectangle().fill(lineColor).frame(width: 1)
-                        TextField("HH:MM:SS:FF", text: $rows[idx].tc)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(.brandAccent)
-                            .frame(width: 120, alignment: .leading)
-                            .padding(.leading, 10)
-                            .padding(.trailing, 4)
-                        Rectangle().fill(lineColor).frame(width: 1)
-                        HStack(alignment: .top, spacing: 6) {
-                            TextField("Kommentar", text: $rows[idx].comment, axis: .vertical)
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 11))
-                                .foregroundColor(textColor)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .lineLimit(1...50)
-                            if rows[idx].truncated {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(Color(red: 0.95, green: 0.70, blue: 0.10))
-                                    .font(.system(size: 11))
-                                    .help("Slutter midt i setning — kan være kuttet.")
-                                    .padding(.top, 1)
-                            }
-                        }
-                        .padding(.leading, 10)
-                        Button {
-                            if let realIdx = rows.firstIndex(where: { $0.id == rows[idx].id }) {
-                                rows.remove(at: realIdx)
-                            }
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.system(size: 10))
-                                .foregroundColor(textSoftColor)
-                        }
-                        .buttonStyle(.plain)
-                        .frame(width: 28)
-                    } else {
-                        Text(rows[idx].date)
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(textSoftColor)
-                            .frame(width: 55, alignment: .leading)
-                        Rectangle().fill(lineColor).frame(width: 1)
-                        Text(rows[idx].tc)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.brandAccent)
-                            .frame(width: 130, alignment: .leading)
-                            .padding(.leading, 10)
-                        Rectangle().fill(lineColor).frame(width: 1)
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .top, spacing: 6) {
-                                Text(rows[idx].comment)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(textColor)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                if rows[idx].truncated {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundColor(Color(red: 0.95, green: 0.70, blue: 0.10))
-                                        .font(.system(size: 11))
-                                        .help("Slutter midt i setning — kan være kuttet. Sjekk i Rediger-modus.")
-                                        .padding(.top, 2)
-                                }
-                            }
-                            if !rows[idx].note.isEmpty {
-                                HStack(alignment: .top, spacing: 6) {
-                                    Text("NOTE")
-                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                        .tracking(0.8)
-                                        .foregroundColor(.brandAccent)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(Color.brandAccent.opacity(0.10))
-                                        .cornerRadius(3)
-                                    Text(rows[idx].note)
-                                        .font(.system(size: 11, design: .default).italic())
-                                        .foregroundColor(textSoftColor)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                        }
-                        .padding(.leading, 10)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(idx % 2 == 0 ? bgColor : stripeBg)
-                .overlay(
-                    Rectangle().fill(lineColor.opacity(0.5)).frame(height: 1)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                )
+                rowView(idx: idx)
             }
 
-            // Klikkbar expand-rad
-            if !showAll && rows.count > limit {
+            // Expand/collapse
+            if rows.count > limit {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { showAll = true }
+                    withAnimation(.easeInOut(duration: 0.2)) { showAll.toggle() }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "chevron.down")
+                        Image(systemName: showAll ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
-                        Text("Vis alle \(rows.count) rader (+\(rows.count - limit))")
-                            .font(.system(size: 11, weight: .medium))
+                        Text(showAll ? "Vis færre" : "Vis alle \(rows.count) rader (+\(rows.count - limit))")
+                            .font(.system(size: 12, weight: .medium))
                         Spacer()
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
                     .foregroundColor(.brandAccent)
-                    .background(headerBg)
+                    .background(Color.glassBgSub)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            } else if showAll && rows.count > limit {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { showAll = false }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text("Vis færre")
-                            .font(.system(size: 11, weight: .medium))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .foregroundColor(.brandAccent)
-                    .background(headerBg)
-                    .contentShape(Rectangle())
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.divider).frame(height: 1)
                 }
-                .buttonStyle(.plain)
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(bgColor)
+    }
+
+    @ViewBuilder
+    private func tableHead(_ title: String, width: CGFloat? = nil, flex: Bool = false) -> some View {
+        let view = Text(title)
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(0.8)
+            .foregroundColor(.inkFaded)
+            .textCase(.uppercase)
+        if flex {
+            view.frame(maxWidth: .infinity, alignment: .leading)
+        } else if let w = width {
+            view.frame(width: w, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func rowView(idx: Int) -> some View {
+        let row = rows[idx]
+        HStack(alignment: .top, spacing: 0) {
+            if isEditing {
+                // Edit mode: input fields
+                editCell {
+                    TextField("DD/M", text: $rows[idx].date)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.inkSoft)
+                }
+                .frame(width: dateW)
+                editCell {
+                    TextField("HH:MM", text: $rows[idx].tc)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.brandAccent)
+                }
+                .frame(width: tcW)
+                VStack(alignment: .leading, spacing: 4) {
+                    editCell {
+                        TextField("Melding", text: $rows[idx].comment, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .foregroundColor(.ink)
+                            .lineLimit(1...50)
+                    }
+                    editCell {
+                        TextField("NOTE: …", text: $rows[idx].note)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11).italic())
+                            .foregroundColor(.inkFaded)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                Button {
+                    if let realIdx = rows.firstIndex(where: { $0.id == row.id }) {
+                        rows.remove(at: realIdx)
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12))
+                        .foregroundColor(.inkFaded)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .frame(width: 48)
+            } else {
+                // View mode: 3 columns with Note as inline yellow box under message
+                Text(row.date)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundColor(.inkSoft)
+                    .frame(width: dateW, alignment: .leading)
+
+                Text(row.tc)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.brandAccent)
+                    .frame(width: tcW, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(row.comment)
+                            .font(.system(size: 13))
+                            .foregroundColor(.ink)
+                            .lineSpacing(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if row.truncated {
+                            Text("kanskje kuttet")
+                                .font(.system(size: 9, weight: .medium))
+                                .tracking(0.3)
+                                .foregroundColor(.dangerRed)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color.dangerBg)
+                                )
+                                .help("Slutter midt i setning — sjekk i Rediger-modus")
+                        }
+                    }
+                    if !row.note.isEmpty {
+                        Text(noteDisplay(row.note))
+                            .font(.system(size: 12))
+                            .foregroundColor(.inkSoft)
+                            .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.warnBg)
+                            )
+                            .overlay(alignment: .leading) {
+                                Rectangle().fill(Color.warnBorder).frame(width: 2)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.divider.opacity(0.5)).frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func editCell<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        content()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.glassBgEl)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color.line, lineWidth: 1)
+            )
+            .padding(.horizontal, 4)
+    }
+
+    private func noteDisplay(_ note: String) -> String {
+        if note.isEmpty { return "" }
+        let trimmed = note.replacingOccurrences(
+            of: #"^NOTE\s*:\s*"#, with: "", options: .regularExpression
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(isEditing ? Color.brandAccent.opacity(0.6) : lineColor, lineWidth: 1)
-        )
+        return trimmed.isEmpty ? note : "NOTE: \(trimmed)"
     }
 }
 
@@ -1124,9 +1797,9 @@ func ocrToCSV(url: URL, engine: OCREngine, fallbackToVision: Bool, outputDir: UR
 
     let baseName = url.deletingPathExtension().lastPathComponent
     let csvURL  = outputDir.appendingPathComponent(baseName).appendingPathExtension("csv")
-    let csv = "date,timecode,comment,note\n" + parsed.map { p in
+    let csv = "timecode,comment,note\n" + parsed.map { p in
         let note = extractNote(from: p.comment)
-        return "\(csvEscape(p.date)),\(p.tc),\(csvEscape(p.comment)),\(csvEscape(note))"
+        return "\(p.tc),\(csvEscape(p.comment)),\(csvEscape(note))"
     }.joined(separator: "\n") + "\n"
     do {
         try csv.write(to: csvURL, atomically: true, encoding: .utf8)
@@ -1773,166 +2446,279 @@ func extractNote(from comment: String) -> String {
     return String(comment[r]).trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-// ─── INFO SHEET ──────────────────────────────────────────────────────────────
-struct InfoSheet: View {
+// ─── GLM-5 MODAL PRIMITIVES ──────────────────────────────────────────────────
+struct ModalShell<Content: View>: View {
+    let title: String
+    let subtitle: String?
     @Binding var isPresented: Bool
+    var footer: AnyView? = nil
+    @ViewBuilder let content: () -> Content
+
     var body: some View {
         VStack(spacing: 0) {
-            // Fixed header
-            HStack(spacing: 10) {
-                Circle().fill(Color.brandAccent).frame(width: 8, height: 8)
-                Text("RENDER")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(2.4)
-                    .foregroundColor(.inkOnDarkSoft)
+            // Header
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.ink)
+                    if let s = subtitle {
+                        Text(s)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.inkFaded)
+                    }
+                }
                 Spacer()
                 Button {
                     isPresented = false
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.inkOnDarkSoft)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .font(.system(size: 13))
+                        .foregroundColor(.inkFaded)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.clear)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.escape)
             }
             .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
+            .padding(.vertical, 20)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.divider).frame(height: 1)
+            }
 
+            // Body
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    // Tittel
-                    HStack(spacing: 10) {
-                        Text("Teams → CSV")
-                            .font(.system(size: 26, weight: .bold))
-                            .foregroundColor(.inkOnDark)
-                            .tracking(-0.3)
-                        BetaBadge()
+                VStack(alignment: .leading, spacing: 28) {
+                    content()
+                }
+                .padding(24)
+            }
+
+            // Footer (optional)
+            if let f = footer {
+                f
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .background(Color.glassBgSub)
+                    .overlay(alignment: .top) {
+                        Rectangle().fill(Color.divider).frame(height: 1)
                     }
+            }
+        }
+        .frame(width: 520, height: 620)
+        .background(
+            ZStack {
+                Color.white.opacity(0.88)
+                Rectangle().fill(.ultraThinMaterial)
+            }
+        )
+    }
+}
 
-                    Text("Konverterer Teams-screenshots til CSV med timecodes og kommentarer. CSV-en kan importeres i RENDER Multicam Markers-pluginen i Premiere Pro.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.inkOnDarkSoft)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
+struct SectionLabel: View {
+    let text: String
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 11, weight: .semibold))
+            .tracking(0.6)
+            .foregroundColor(.inkFaded)
+    }
+}
 
-                    InfoCard(title: "Personvern", icon: "lock.shield") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            infoBullet("Alt OCR kjøres lokalt på din maskin")
-                            infoBullet("Ingen bilder eller data sendes til skyen")
-                            infoBullet("Ingen API-kall, ingen telemetri")
-                            infoBullet("Source-PNGer modifiseres aldri")
-                        }
-                    }
+// Radio card med tittel + beskrivelse
+struct RadioCard<T: Hashable>: View {
+    let value: T
+    @Binding var selection: T
+    let title: String
+    let desc: String
+    @State private var hover = false
 
-                    InfoCard(title: "OCR-motorer", icon: "doc.text.viewfinder") {
-                        VStack(alignment: .leading, spacing: 14) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Tesseract (norsk)")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.inkOnDark)
-                                Text("Standard. Best på norske tegn. Krever Homebrew (installeres automatisk av installer-en).")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                                    .lineSpacing(2)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Apple Vision")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.inkOnDark)
-                                Text("Innebygd i macOS. Brukes som fallback hvis Tesseract feiler.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                            }
-                        }
-                    }
+    private var selected: Bool { selection == value }
 
-                    InfoCard(title: "Kontakt", icon: "envelope") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("© ENSAMBLE AS")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.inkOnDark)
-                            Text("victoria@ensamble.no")
-                                .font(.system(size: 12))
-                                .foregroundColor(.brandAccent)
-                                .textSelection(.enabled)
-                        }
+    var body: some View {
+        Button {
+            selection = value
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .strokeBorder(selected ? Color.brandAccent : Color.line, lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                    if selected {
+                        Circle()
+                            .fill(Color.brandAccent)
+                            .frame(width: 8, height: 8)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.ink)
+                    Text(desc)
+                        .font(.system(size: 12))
+                        .foregroundColor(.inkFaded)
+                }
+                Spacer()
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(selected ? Color.brandAccentDim : Color.glassBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(selected ? Color.brandAccent : Color.line, lineWidth: 1)
+            )
         }
-        .frame(width: 520, height: 600)
-        .background(Color.canvas)
-    }
-
-    private func infoBullet(_ s: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(.brandAccent)
-                .padding(.top, 3)
-            Text(s)
-                .font(.system(size: 12))
-                .foregroundColor(.inkOnDark)
-                .lineSpacing(2)
-            Spacer()
-        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
-// Reusable card for info sections
-struct InfoCard<Content: View>: View {
-    let title: String
-    let icon: String
-    @ViewBuilder let content: () -> Content
+struct ToggleRow: View {
+    let label: String
+    let sublabel: String?
+    @Binding var isOn: Bool
+    var disabled: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
-                    .foregroundColor(.brandAccent)
-                Text(title.uppercased())
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .tracking(1.4)
-                    .foregroundColor(.inkOnDarkSoft)
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.ink)
+                if let s = sublabel {
+                    Text(s)
+                        .font(.system(size: 12))
+                        .foregroundColor(.inkFaded)
+                }
             }
-            content()
+            Spacer()
+            CapsuleToggle(isOn: $isOn, disabled: disabled)
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.glassBg)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.line, lineWidth: 1)
         )
     }
 }
 
-struct Section<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: () -> Content
+struct CapsuleToggle: View {
+    @Binding var isOn: Bool
+    var disabled: Bool = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .tracking(1.2)
-                .foregroundColor(.brandAccent)
-            content()
+        Button {
+            if !disabled { isOn.toggle() }
+        } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(isOn ? Color.brandAccent : Color.bgSecondary)
+                    .frame(width: 44, height: 24)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 18, height: 18)
+                    .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                    .padding(3)
+            }
+            .opacity(disabled ? 0.55 : 1)
+            .animation(.easeOut(duration: 0.18), value: isOn)
         }
-        .padding(.bottom, 4)
+        .buttonStyle(.plain)
     }
 }
 
-// ─── SETTINGS SHEET ──────────────────────────────────────────────────────────
+// ─── INFO SHEET (GLM-5) ──────────────────────────────────────────────────────
+struct InfoSheet: View {
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        ModalShell(title: "Om", subtitle: nil, isPresented: $isPresented) {
+            VStack(alignment: .leading, spacing: 20) {
+                // Logo + name + version
+                HStack(spacing: 14) {
+                    ClapperboardLogo(size: 48)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("TeamsToMarkers")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.ink)
+                        Text("\(appVersionLabel)-beta")
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundColor(.inkFaded)
+                    }
+                }
+
+                Text("Konverterer Microsoft Teams chat-screenshots til rene CSV-filer med timecodes for video-redigerings-arbeidsflyter.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.inkSoft)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Privacy list med grønne ikoner
+                VStack(spacing: 0) {
+                    privacyItem(icon: "shield.fill",
+                                title: "All OCR kjøres lokalt",
+                                desc: "Ingen internett-forbindelse nødvendig for prosessering")
+                    Divider().background(Color.divider)
+                    privacyItem(icon: "lock.fill",
+                                title: "Null data forlater enheten",
+                                desc: "Ingen telemetri, ingen analytics, ingen sky-opplastinger")
+                    Divider().background(Color.divider)
+                    privacyItem(icon: "doc.fill",
+                                title: "Kildefiler endres aldri",
+                                desc: "Original-screenshots forblir urørte")
+                }
+
+                // Contact
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionLabel(text: "Kontakt")
+                    Text("ENSAMBLE AS · victoria@ensamble.no")
+                        .font(.system(size: 13))
+                        .foregroundColor(.brandAccent)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+    }
+
+    private func privacyItem(icon: String, title: String, desc: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.133, green: 0.773, blue: 0.369).opacity(0.10))
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(red: 0.086, green: 0.639, blue: 0.290))
+            }
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.ink)
+                Text(desc)
+                    .font(.system(size: 12))
+                    .foregroundColor(.inkFaded)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 12)
+    }
+}
+
+// ─── SETTINGS SHEET (GLM-5 radio-cards) ──────────────────────────────────────
 struct SettingsSheet: View {
     @EnvironmentObject var updater: UpdateChecker
     @Binding var isPresented: Bool
@@ -1943,213 +2729,155 @@ struct SettingsSheet: View {
     @Binding var exportPDF: Bool
     @Binding var exportXLSX: Bool
 
+    @State private var csvOnDummy = true
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Fixed header
-            HStack(spacing: 10) {
-                Circle().fill(Color.brandAccent).frame(width: 8, height: 8)
-                Text("RENDER")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(2.4)
-                    .foregroundColor(.inkOnDarkSoft)
-                Spacer()
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.inkOnDarkSoft)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+        ModalShell(title: "Innstillinger", subtitle: nil, isPresented: $isPresented) {
+            // OCR Engine
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "OCR-motor")
+                VStack(spacing: 8) {
+                    RadioCard(value: .tesseract, selection: $engine,
+                              title: "Tesseract",
+                              desc: "Open-source, multilingual, best på norske tegn")
+                    RadioCard(value: .vision, selection: $engine,
+                              title: "Apple Vision",
+                              desc: "macOS-innebygd, rask, høy nøyaktighet")
                 }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape)
+                if engine == .tesseract && tesseractPath == nil {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.brandAccent)
+                            .font(.system(size: 11))
+                        Text("Tesseract ikke installert. Installeres via Homebrew.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.inkSoft)
+                    }
+                }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    Text("Innstillinger")
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundColor(.inkOnDark)
-                        .tracking(-0.3)
+            // Processing
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Prosessering")
+                ToggleRow(
+                    label: "Fallback ved feil",
+                    sublabel: "Bruk Apple Vision hvis Tesseract feiler",
+                    isOn: $tesseractFallback
+                )
+            }
 
-                    InfoCard(title: "OCR-motor", icon: "doc.text.viewfinder") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Picker("", selection: $engine) {
-                                ForEach(OCREngine.allCases) { e in
-                                    Text(e.rawValue).tag(e)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-
-                            if engine == .tesseract {
-                                if tesseractPath != nil {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.brandAccent)
-                                            .font(.system(size: 11))
-                                        Text("Tesseract er installert og klar.")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.inkOnDarkSoft)
-                                    }
-                                } else {
-                                    HStack(alignment: .top, spacing: 6) {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.brandAccent)
-                                            .font(.system(size: 11))
-                                            .padding(.top, 1)
-                                        Text("Tesseract ikke installert. Installeres med RENDER Suite Installer eller manuelt via Homebrew.")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.inkOnDarkSoft)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
-                                Toggle(isOn: $tesseractFallback) {
-                                    Text("Bruk Apple Vision som fallback hvis Tesseract feiler")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.inkOnDark)
-                                }
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                            } else {
-                                Text("Apple Vision er innebygd i macOS — fungerer alltid, men sliter mer med æ/ø/å.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                                    .fixedSize(horizontal: false, vertical: true)
+            // Save Location
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Lagringsplassering")
+                VStack(spacing: 8) {
+                    RadioCard(value: .alongside, selection: $saveLocationMode,
+                              title: "Ved siden av kilden",
+                              desc: "Lagre CSV i samme mappe som originalbildet")
+                    RadioCard(value: .custom, selection: $saveLocationMode,
+                              title: "Egen mappe",
+                              desc: "Velg en spesifikk output-mappe")
+                }
+                if saveLocationMode == .custom {
+                    HStack(spacing: 8) {
+                        Text(customSavePath.isEmpty ? "Ingen mappe valgt" : customSavePath)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(customSavePath.isEmpty ? .inkFaded : .inkSoft)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.glassBgEl)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Color.line, lineWidth: 1)
+                            )
+                        Button("Velg…") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            if panel.runModal() == .OK, let url = panel.url {
+                                customSavePath = url.path
                             }
                         }
-                    }
-
-                    InfoCard(title: "Lagringsplassering", icon: "folder") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Picker("", selection: $saveLocationMode) {
-                                ForEach(SaveLocationMode.allCases) { m in
-                                    Text(m.label).tag(m)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-
-                            if saveLocationMode == .custom {
-                                HStack(spacing: 8) {
-                                    Text(customSavePath.isEmpty ? "Ingen valgt" : customSavePath)
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundColor(customSavePath.isEmpty ? .inkOnDarkFaded : .inkOnDark)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .background(Color.white.opacity(0.06))
-                                        .cornerRadius(4)
-                                    Button("Velg mappe…") {
-                                        let panel = NSOpenPanel()
-                                        panel.canChooseFiles = false
-                                        panel.canChooseDirectories = true
-                                        panel.allowsMultipleSelection = false
-                                        if panel.runModal() == .OK, let url = panel.url {
-                                            customSavePath = url.path
-                                        }
-                                    }
-                                    .controlSize(.small)
-                                }
-                            } else {
-                                Text("Filene lagres i samme mappe som PNG-en.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                            }
-                        }
-                    }
-
-                    InfoCard(title: "Eksportformater", icon: "doc.on.doc") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.brandAccent)
-                                    .font(.system(size: 11))
-                                Text(".csv")
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .foregroundColor(.inkOnDark)
-                                Text("alltid på")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                                Spacer()
-                            }
-                            Toggle(isOn: $exportPDF) {
-                                HStack(spacing: 8) {
-                                    Text(".pdf").font(.system(size: 12, design: .monospaced)).foregroundColor(.inkOnDark)
-                                    Text("PDF-tabell").font(.system(size: 11)).foregroundColor(.inkOnDarkSoft)
-                                }
-                            }
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            Toggle(isOn: $exportXLSX) {
-                                HStack(spacing: 8) {
-                                    Text(".xlsx").font(.system(size: 12, design: .monospaced)).foregroundColor(.inkOnDark)
-                                    Text("Excel-arbeidsbok").font(.system(size: 11)).foregroundColor(.inkOnDarkSoft)
-                                }
-                            }
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                        }
-                    }
-
-                    InfoCard(title: "Oppdatering", icon: "arrow.down.circle") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                Text("Nåværende versjon:")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.inkOnDarkSoft)
-                                Text(appVersionLabel)
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                    .foregroundColor(.inkOnDark)
-                            }
-                            if let v = updater.availableVersion {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "arrow.down.circle.fill").foregroundColor(.brandAccent)
-                                    Text("Ny versjon tilgjengelig: \(v)")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.brandAccent)
-                                }
-                                Button("Installer ny versjon nå") {
-                                    Task { await updater.installUpdate() }
-                                }
-                                .buttonStyle(.plain)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(Color.brandAccent))
-                            } else {
-                                HStack(spacing: 6) {
-                                    Button(updater.isChecking ? "Sjekker…" : "Sjekk for oppdatering") {
-                                        Task { await updater.checkForUpdate() }
-                                    }
-                                    .disabled(updater.isChecking)
-                                    .buttonStyle(.plain)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.inkOnDark)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Capsule().fill(Color.white.opacity(0.10)))
-                                    if let err = updater.errorMessage {
-                                        Text(err).font(.system(size: 10)).foregroundColor(.brandAccent)
-                                    }
-                                }
-                            }
-                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.glassBg)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.line, lineWidth: 1)
+                        )
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+            }
+
+            // Export formats
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Eksportformater")
+                VStack(spacing: 8) {
+                    ToggleRow(label: "CSV", sublabel: "Alltid på", isOn: $csvOnDummy, disabled: true)
+                    ToggleRow(label: "PDF Report", sublabel: "Generer formatert PDF sammen med CSV", isOn: $exportPDF)
+                    ToggleRow(label: "XLSX Spreadsheet", sublabel: "Excel-kompatibelt format", isOn: $exportXLSX)
+                }
+            }
+
+            // Updates
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Oppdatering")
+                HStack(spacing: 8) {
+                    Text("Nåværende:")
+                        .font(.system(size: 12))
+                        .foregroundColor(.inkFaded)
+                    Text(appVersionLabel)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(.ink)
+                    Spacer()
+                    if let v = updater.availableVersion {
+                        Button("Installer \(v)") {
+                            Task { await updater.installUpdate() }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.brandAccent)
+                        )
+                        .shadow(color: Color.brandAccentGlow, radius: 6, y: 3)
+                    } else {
+                        Button(updater.isChecking ? "Sjekker…" : "Sjekk nå") {
+                            Task { await updater.checkForUpdate() }
+                        }
+                        .disabled(updater.isChecking)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.glassBg)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.line, lineWidth: 1)
+                        )
+                    }
+                }
             }
         }
-        .frame(width: 520, height: 700)
-        .background(Color.canvas)
     }
 }
 

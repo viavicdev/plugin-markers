@@ -5,7 +5,7 @@ import SwiftUI
 import AppKit
 import WebKit
 
-let patchLabel = "Patch 11 · v1.11"
+let patchLabel = "v1.23"
 
 extension Color {
     static let canvas      = Color(red: 0.10, green: 0.10, blue: 0.12)

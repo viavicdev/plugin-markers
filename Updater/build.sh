@@ -21,6 +21,9 @@ cp -R ../dist/unpacked/RENDER-Suite/extension/com.render.teamsmc2 \
 echo "▸ Bundler TeamsToCSV.app..."
 cp -R ../TeamsToCSV/TeamsToCSV.app "$APP/Contents/Resources/TeamsToCSV.app"
 
+echo "▸ Kopierer app-ikon..."
+cp ../TeamsToCSV/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
 echo "▸ Writing Info.plist..."
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -37,6 +40,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
 </dict>
 </plist>
 PLIST

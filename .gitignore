@@ -25,6 +25,9 @@ dist/unpacked/
 # Stray screenshots and ad-hoc files
 /Skjermbilde*.png
 /animsjon.html
+/bug_*.png
+/Untitled
+/GLM*.html
 
 # Temporary files
 /tmp/
