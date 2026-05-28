@@ -56,8 +56,10 @@ plugin/
 | Vil du... | Gå til |
 |---|---|
 | ...lese om hvordan dette virker | [`docs/DOKUMENTASJON.md`](docs/DOKUMENTASJON.md) |
+| ...se siste endringer | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) |
 | ...se hvilke problemer som ble løst | [`docs/PROBLEM-RAPPORT.md`](docs/PROBLEM-RAPPORT.md) |
-| ...sende pakken til en bruker | `dist/zips/RENDER-Suite-v1.zip` |
+| ...sende patch til gamle brukere | `dist/zips/RENDER-Markers-v1.24-Patch.zip` |
+| ...publisere ny versjon (auto-update) | `./release.sh v1.25` |
 | ...endre Premiere-pluginen | `premiere-plugin/` (HTML+JS+JSX) |
 | ...endre TeamsToCSV-appen | `TeamsToCSV/main.swift` |
 | ...bygge TeamsToCSV på nytt | `cd TeamsToCSV && ./build.sh` |
@@ -87,22 +89,28 @@ cp premiere-plugin/host.jsx    "$HOME/Library/Application Support/Adobe/CEP/exte
 # Restart Premiere (Cmd+Q og åpne igjen)
 ```
 
-### Bygge ny distribusjon
+### Publisere ny versjon (auto-update for alle brukere)
 
-Manuell prosess (kan automatiseres senere):
-1. Bygg TeamsToCSV på nytt med `./build.sh`
-2. Synkroniser oppdaterte filer til `dist/unpacked/RENDER-Suite/extension/...`
-3. Synkroniser oppdatert `TeamsToCSV.app` til `dist/unpacked/RENDER-Suite/`
-4. `cd dist/unpacked && zip -rqy ../zips/RENDER-Suite-v2.zip RENDER-Suite -x "*.DS_Store"`
+```bash
+./release.sh v1.25                          # standard release-tekst
+./release.sh v1.25 "Fikser noten-bug"       # med egen tekst
+```
+
+Scriptet bumper versjon, bygger, zipper, tagger, og publiserer GitHub Release.
+Brukere som har v1.14+ får banner ved neste appstart. Krever `gh auth login`
+én gang. Se [`docs/DOKUMENTASJON.md` §6.1b](docs/DOKUMENTASJON.md).
 
 ---
 
 ## Distribusjon (sluttbruker)
 
-Send `dist/RENDER-Suite-v1.zip` til brukeren. De:
-1. Pakker ut
-2. Dobbeltklikker `install.command`
-3. Følger instruksene i terminalen (svarer J/n på Tesseract/Homebrew)
+**For nye brukere ELLER brukere med v1.11 eller eldre (Patch11):**
+Send `dist/zips/RENDER-Markers-v1.24-Patch.zip` (Developer ID-signert +
+notarisert). De pakker ut og dobbeltklikker `RENDER Markers Oppdaterer`.
+
+**For brukere med v1.14 eller nyere:** De får automatisk banner i appen ved
+neste oppstart når du har kjørt `./release.sh v1.25`. Ingen manuell handling
+kreves fra deg utover å publisere release-en.
 
 Se [`docs/DOKUMENTASJON.md`](docs/DOKUMENTASJON.md) for full beskrivelse.
 

@@ -1,8 +1,10 @@
 # RENDER Suite — Dokumentasjon
 
-**Versjon:** 1.0 (BETA)
-**Dato:** 2026-05-27
+**Versjon:** 1.24 (BETA)
+**Dato:** 2026-05-29
 **© ENSAMBLE AS** — kontakt: victoria@ensamble.no
+
+> Se [`CHANGELOG.md`](CHANGELOG.md) for full historikk over endringer.
 
 ---
 
@@ -172,14 +174,40 @@ Apple Silicon-only (arm64).
 
 ### 5.4 Innstillinger (UserDefaults-basert, persistent)
 
+- **OCR-motor:** Tesseract (norsk) eller Apple Vision (radio-cards)
+- **Fallback:** bruk Apple Vision hvis Tesseract feiler
 - **Lagringsplassering:** ved siden av PNG, eller egen mappe
 - **Eksportformater:** CSV (alltid), PDF (toggle), XLSX (toggle)
 
-### 5.5 Personvern
+### 5.5 Funksjoner i appen (per v1.24)
 
-- 100% lokal kjøring — ingen API-kall, ingen telemetri
+- **PNG-thumbnail** i hver fil-rad (44×44, retina-skarp)
+- **Quick Look på filnavn-klikk** — verifiserer OCR mot kilden
+- **Duplikat-deteksjon:** SHA256-hash skipper allerede-lastet PNG
+- **"Slå sammen alle til én CSV":** kombinerer flere filer, sorterer på
+  dato + timecode (knappen dukker opp når 2+ filer er lastet)
+- **Inline editing:** klikk "Rediger" på en fil-rad for å endre rader,
+  slette rader, eller legge til/endre NOTE-felt
+- **"Kanskje kuttet"-varsel:** rød pill ved siden av meldinger som ser
+  ut til å være avkappet midt i en setning
+
+### 5.6 Auto-update (v1.14+)
+
+Appen sjekker `api.github.com/repos/viavicdev/plugin-markers/releases/latest`
+ved oppstart. Hvis det finnes en nyere versjon enn `appVersionLabel`,
+vises et rødt banner med "Oppdater nå"-knapp som:
+
+1. Laster ned zip-en fra release-asseten
+2. Pakker ut, finner `TeamsToCSV.app` rekursivt
+3. Skriver et bash-script til `/tmp` som swapper appen og restarter
+4. Quitter selv → script kjører → ny app åpnes
+
+### 5.7 Personvern
+
+- 100% lokal kjøring — ingen API-kall (utenom GitHub-update-sjekk), ingen telemetri
 - Source-PNG aldri modifisert (leses via `CGImageSource`, aldri skrives)
 - PDF/XLSX skrives kun til disk, ikke til skyen
+- Auto-update gjør ETT HEAD-call til GitHub API ved oppstart
 
 ---
 
@@ -198,6 +226,37 @@ Stegene i `build.sh`:
 3. Bygger `.app`-bundle med Info.plist
 4. Ad-hoc-signerer med `codesign --force --deep --sign -`
 5. Registrerer i LaunchServices
+
+### 6.1b Bygge + publisere ny release (`release.sh`)
+
+For å pushe en ny versjon til alle brukere automatisk:
+
+```bash
+./release.sh v1.25                          # standard release-tekst
+./release.sh v1.25 "Fikser noten-bug"       # med egen tekst
+```
+
+Stegene:
+1. Sjekker at `gh` er autentisert + working tree er ren
+2. Bumper `appVersionLabel` i `main.swift` til ny versjon
+3. Bygger TeamsToCSV-appen
+4. Zipper med `ditto -c -k --sequesterRsrc --keepParent` (riktig macOS-format)
+5. Committer versjons-bump, tagger, pusher
+6. `gh release create` med zip-en som asset
+
+**Krav (én gang):** `brew install gh && gh auth login`.
+
+**For ekte distribusjon med signering:** Updater-appen bygges separat
+i `Updater/` med:
+
+```bash
+cd Updater && ./build.sh
+codesign --force --options runtime --timestamp \
+    --sign "Developer ID Application: Victoria Haugnes (25442KK49Q)" \
+    "RENDER Markers Oppdaterer.app"
+xcrun notarytool submit /tmp/notarize.zip --keychain-profile AC_PASSWORD --wait
+xcrun stapler staple "RENDER Markers Oppdaterer.app"
+```
 
 ### 6.2 Bygge dist-pakker
 
@@ -248,8 +307,9 @@ Alle steg er interaktive (krever bruker-bekreftelse for installasjoner).
    men må generere CSV manuelt eller på annen vei.
 4. **Premiere 26+ mangler innebygd JSON** i ExtendScript-engineen — vi har
    lagt inn polyfill, men dette er ikke offisielt dokumentert hos Adobe.
-5. **Apper er ad-hoc-signert, ikke Apple-signert.** Bruker må klikke gjennom
-   "uidentifisert utvikler"-advarsel første gang.
+5. ~~Apper er ad-hoc-signert, ikke Apple-signert.~~ **(Løst i v1.24)**
+   Apper signeres nå med Developer ID + notariseres + staples — ingen
+   Gatekeeper-advarsel.
 
 ---
 
@@ -259,9 +319,13 @@ Alle steg er interaktive (krever bruker-bekreftelse for installasjoner).
 - [ ] Bundle Tesseract statisk i appen (slipper Homebrew)
 - [ ] Auto-detect Start-TC for multicam via XMP metadata
 - [ ] AI-vision via Claude/GPT API (valgfritt, opt-in) for bedre OCR
-- [ ] Apple Developer-signering ($99/år) → ingen "uidentifisert utvikler"-advarsel
+- [x] ~~Apple Developer-signering~~ — gjort i v1.24
+- [x] ~~Auto-update-mekanisme~~ — gjort i v1.14, første release v1.24
 - [ ] Windows-støtte (Premiere CEP funker på Windows, men TeamsToCSV må re-skrives)
 - [ ] Integrasjon: én knapp i pluginen som åpner TeamsToCSV med ferdig screenshot
+- [ ] Drag-out CSV-fil fra appen til Finder/Premiere
+- [ ] Reordering av rader i edit-modus
+- [ ] Søk/filter i radene innenfor en fil
 
 ---
 
